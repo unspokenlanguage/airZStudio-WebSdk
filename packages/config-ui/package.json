@@ -1,0 +1,52 @@
+{
+  "name": "@airz/config-ui",
+  "version": "0.1.0",
+  "description": "Mountable React overlay to visually configure @airz/rundown-sdk: controller URL, rundown/item targets, and binding→source mappings per panel.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "airz",
+    "rundown",
+    "react",
+    "configurator",
+    "overlay"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@airz/rundown-sdk": "^0.1.0",
+    "react": ">=18"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "devDependencies": {
+    "@airz/rundown-sdk": "*",
+    "@types/react": "^18.3.12",
+    "react": "^18.3.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.0"
+  }
+}
