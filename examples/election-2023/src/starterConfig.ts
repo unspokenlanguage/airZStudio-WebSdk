@@ -47,7 +47,7 @@ const countyFields: FieldConfig[] = [
 
 export const STARTER_CONFIG: MappingConfig = {
   version: 1,
-  server: { baseUrl: "http://127.0.0.1:3467" },
+  server: { baseUrl: `http://${window.location.hostname}:3467` },
   panels: [
     {
       panelId: "general-ticker",

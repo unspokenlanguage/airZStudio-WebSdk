@@ -12,21 +12,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   configToPanelSpec,
   LinkedItem,
-  localStorageConfig,
+  urlHashConfig,
   panelControls,
   PanelBinder,
   passthroughImages,
   uploadingImages,
+  saveRemoteConfig,
+  discoverAndWatchRemoteConfig,
+  validateConfigTargets,
   type AirzClient,
   type MappingConfig,
   type PanelConfig,
   type RundownStream,
 } from "@airz/rundown-sdk";
 import { AirzConfigurator } from "@airz/config-ui";
-import { ELECTION_2023, SOURCE_PATHS, type CityResult } from "./data.js";
+import { ELECTION_2023, SOURCE_PATHS, type CityResult, type ElectionData } from "./data.js";
 import { STARTER_CONFIG } from "./starterConfig.js";
 
-const configStore = localStorageConfig("airz.election2023.config");
+const configStore = urlHashConfig("airz.election2023.config");
 
 export function App() {
   const [config, setConfig] = useState<MappingConfig>(
@@ -37,6 +40,56 @@ export function App() {
   const [uploadImages, setUploadImages] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  const [feed, setFeed] = useState<ElectionData>(ELECTION_2023);
+
+  // Auto-update logic: increment votes every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFeed((prev) => {
+        const next = JSON.parse(JSON.stringify(prev)) as ElectionData;
+        
+        // Randomize candidates
+        next.candidates.forEach((c) => {
+          c.votes = Math.floor(Math.random() * 30000000);
+        });
+        const totalVotes = next.candidates.reduce((sum, c) => sum + c.votes, 0);
+        next.candidates.forEach((c) => {
+          c.percent = (c.votes / totalVotes) * 100;
+        });
+        next.candidates.sort((a, b) => b.percent - a.percent);
+
+        // Randomize cities and counties
+        next.cities.forEach(city => {
+          city.parties.forEach(p => {
+            p.votes = Math.floor(Math.random() * 1000000);
+          });
+          const cTotal = city.parties.reduce((sum, p) => sum + p.votes, 0);
+          city.parties.forEach(p => {
+            p.percent = (p.votes / cTotal) * 100;
+          });
+          city.parties.sort((a, b) => b.percent - a.percent);
+
+          city.counties.forEach(county => {
+            county.parties.forEach(p => {
+              p.votes = Math.floor(Math.random() * 100000);
+            });
+            const kTotal = county.parties.reduce((sum, p) => sum + p.votes, 0);
+            county.parties.forEach(p => {
+              p.percent = (p.votes / kTotal) * 100;
+            });
+            county.parties.sort((a, b) => b.percent - a.percent);
+          });
+        });
+
+        // Add small increment to reporting
+        next.reporting = Math.min(100, next.reporting + 0.01);
+        
+        return next;
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Generic selector state. The NAMES (activeCity/activeCounty) come from the
   // config's control fields (`as`); the default VALUES come from the app's data.
@@ -50,7 +103,40 @@ export function App() {
   const saveConfig = (next: MappingConfig) => {
     setConfig(next);
     configStore.save(next);
+    if (client) {
+      saveRemoteConfig(client, "election2023", next).catch(e => {
+        setErr("Failed to save remote config: " + String(e));
+      });
+    }
   };
+
+  // Auto-discover config from the controller on connect, then LIVE-sync changes
+  // other machines make. All clients must point at the SAME controller — item
+  // IDs are per-database, so a second machine on 127.0.0.1 (its own empty
+  // controller) or a different box will discover nothing. We also validate the
+  // discovered targets against this controller and surface any mismatch.
+  useEffect(() => {
+    if (!client) return;
+    // Discovers the config now AND keeps syncing — including when another
+    // machine saves it after we've already connected.
+    const stop = discoverAndWatchRemoteConfig(client, "election2023", {
+      onConfig: (cfg) => {
+        pushLog("✓ remote configuration synced");
+        setConfig(cfg);
+        configStore.save(cfg);
+        validateConfigTargets(client, cfg).then((rows) => {
+          const bad = rows.filter((r) => !r.ok && r.reason !== "not configured");
+          setErr(
+            bad.length
+              ? `${bad.length} panel target(s) not on this controller — are all machines on the same controller IP? ` +
+                  bad.map((b) => `${b.label ?? b.panelId}: ${b.reason}`).join("; ")
+              : null,
+          );
+        });
+      },
+    });
+    return stop;
+  }, [client]);
 
   const pushLog = (line: string) =>
     setLog((l) => [`${new Date().toLocaleTimeString()}  ${line}`, ...l].slice(0, 30));
@@ -66,7 +152,7 @@ export function App() {
       images: uploadImages ? uploadingImages(client, { folder: "/election" }) : passthroughImages,
     });
     for (const pc of list) binder.add(configToPanelSpec(pc, { selectors }));
-    await binder.update(ELECTION_2023);
+    await binder.update(feed);
     await binder.flush();
   };
 
@@ -139,6 +225,7 @@ export function App() {
 
   // Synchronous loop: any selector change (operator OR controller-side control
   // edit) re-pushes the panels whose slice depends on selectors.
+  // Also pushes when the feed auto-updates.
   useEffect(() => {
     if (!client) return;
     const dynamic = configured.filter((p) => p.selectBy && p.selectBy.length);
@@ -149,9 +236,18 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectorsKey, client, panelsKey]);
 
+  // Auto-push ALL configured panels when the live feed ticks.
+  useEffect(() => {
+    if (!client || configured.length === 0) return;
+    pushPanels(configured)
+      .then(() => pushLog(`↻ auto-pushed ${configured.length} panel(s)`))
+      .catch((e) => setErr(String(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed]);
+
   // The app knows its own data → render dropdowns for it. Keep county valid.
   const city =
-    ELECTION_2023.cities.find((c) => c.code === selectors.activeCity) ?? ELECTION_2023.cities[0]!;
+    feed.cities.find((c) => c.code === selectors.activeCity) ?? feed.cities[0]!;
   useEffect(() => {
     if (!city.counties.some((k) => k.code === selectors.activeCounty)) {
       setSelector("activeCounty", city.counties[0]?.code ?? "");
@@ -179,7 +275,7 @@ export function App() {
             value={selectors.activeCity}
             onChange={(e) => onPickSelector("activeCity", e.target.value)}
           >
-            {ELECTION_2023.cities.map((c) => (
+            {feed.cities.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.name}
               </option>
@@ -233,7 +329,7 @@ export function App() {
 
         <section style={S.card}>
           <h2 style={S.h2}>Preview</h2>
-          <Preview city={city} countyCode={selectors.activeCounty} />
+          <Preview city={city} countyCode={selectors.activeCounty} feed={feed} />
         </section>
       </div>
 
@@ -250,13 +346,13 @@ export function App() {
   );
 }
 
-function Preview({ city, countyCode }: { city: CityResult; countyCode: string }) {
+function Preview({ city, countyCode, feed }: { city: CityResult; countyCode: string; feed: ElectionData }) {
   const county = city.counties.find((k) => k.code === countyCode);
-  const gMax = useMemo(() => Math.max(...ELECTION_2023.candidates.map((c) => c.percent)), []);
+  const gMax = useMemo(() => Math.max(...feed.candidates.map((c) => c.percent)), [feed.candidates]);
   return (
     <div>
-      <div style={{ fontWeight: 700, marginBottom: 10 }}>{ELECTION_2023.headline}</div>
-      {ELECTION_2023.candidates.slice(0, 4).map((c) => (
+      <div style={{ fontWeight: 700, marginBottom: 10 }}>{feed.headline}</div>
+      {feed.candidates.slice(0, 4).map((c) => (
         <div key={c.name} style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
             <strong>{c.name}</strong>

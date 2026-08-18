@@ -168,7 +168,6 @@ export const SOURCE_PATHS: string[] = [
   // City/county panels are sliced at runtime, so their paths are relative:
   "name",
   "code",
-  "reporting",
   ...[0, 1, 2].flatMap((n) => [
     `parties.${n}.party`,
     `parties.${n}.percent`,

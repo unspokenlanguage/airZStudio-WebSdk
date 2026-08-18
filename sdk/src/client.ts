@@ -158,6 +158,25 @@ class ItemsApi {
     return items.find((i) => i.id === itemId);
   }
 
+  /** POST /rundowns/<id>/items — create a new item (write access required). */
+  create(
+    rundownId: number,
+    input: {
+      title?: string;
+      type?: string;
+      templateId?: number;
+      durationMs?: number;
+      groupId?: number;
+      status?: string;
+      data?: BindingData;
+    } = {},
+  ): Promise<RundownItem> {
+    return this.http.request(`/rundowns/${rundownId}/items`, {
+      method: "POST",
+      body: input,
+    });
+  }
+
   /**
    * PATCH /rundowns/<id>/items/<itemId>/data — the core push. Hot-applies to
    * the live preview/program. Values may be bare or `{ type, value }`.

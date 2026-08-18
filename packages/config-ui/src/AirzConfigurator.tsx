@@ -3,7 +3,7 @@
 // auto-load that template's bindings, and map each binding to a source field,
 // constant, or image. Emits a serializable MappingConfig the PanelBinder runs.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   createClient,
   describeTemplateBindings,
@@ -302,12 +302,6 @@ function PanelEditor(props: {
         </div>
       )}
 
-      <datalist id="airz-src-paths">
-        {props.sourcePaths.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
-
       <div style={{ maxHeight: 320, overflowY: "auto", marginTop: 6 }}>
         {bindings.map((b) => {
           const f = fieldByKey.get(b.key);
@@ -339,13 +333,13 @@ function PanelEditor(props: {
                 />
               ) : (
                 <>
-                  <input
-                    style={{ ...S.input, flex: 2 }}
-                    list="airz-src-paths"
+                  <Combobox
+                    style={{ flex: 2 }}
+                    options={props.sourcePaths}
                     placeholder="source path e.g. candidates.0.name"
                     value={f?.from ?? ""}
-                    onChange={(e) =>
-                      setField(b.key, e.target.value ? { from: e.target.value } : null)
+                    onChange={(v) =>
+                      setField(b.key, v ? { from: v } : { from: undefined })
                     }
                   />
                   <select
@@ -373,6 +367,107 @@ function PanelEditor(props: {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function Combobox(props: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  style?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const [localValue, setLocalValue] = useState(props.value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalValue(props.value);
+  }, [props.value]);
+
+  const filtered = props.options.filter((o) =>
+    o.toLowerCase().includes(localValue.toLowerCase())
+  );
+
+  return (
+    <div style={{ position: "relative", ...props.style }}>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <input
+          ref={inputRef}
+          style={{ ...S.input, width: "100%", paddingRight: 24 }}
+          value={localValue}
+          placeholder={props.placeholder}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 200)}
+          onChange={(e) => {
+            setLocalValue(e.target.value);
+            props.onChange(e.target.value);
+            setOpen(true);
+          }}
+        />
+        {localValue && (
+          <button
+            style={{
+              position: "absolute",
+              right: 6,
+              background: "transparent",
+              border: "none",
+              color: "#9aa3ad",
+              cursor: "pointer",
+              padding: 2,
+            }}
+            onClick={() => {
+              setLocalValue("");
+              props.onChange("");
+              inputRef.current?.focus();
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            background: "#16181d",
+            border: "1px solid #2c2f36",
+            borderRadius: 6,
+            maxHeight: 200,
+            overflowY: "auto",
+            zIndex: 10,
+            marginTop: 4,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+          }}
+        >
+          {filtered.map((o) => (
+            <div
+              key={o}
+              style={{
+                padding: "6px 10px",
+                cursor: "pointer",
+                fontSize: 12,
+                borderBottom: "1px solid #202329",
+                color: "#e4e4e7",
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setLocalValue(o);
+                props.onChange(o);
+                setOpen(false);
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#262b30")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              {o}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

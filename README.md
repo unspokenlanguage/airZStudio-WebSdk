@@ -9,6 +9,10 @@ release per customer; apps are hosted separately and just hit the API.
 > framework-agnostic SDK + reference apps that live outside the controller
 > binary.
 
+
+npm install && npm run build:libs   # both packages
+npm run dev:2023   
+
 ## Layout
 
 | Path | What |
