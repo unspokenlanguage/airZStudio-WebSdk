@@ -5,6 +5,7 @@ export {
   createClient,
   type ClientOptions,
   type UploadedAsset,
+  type WebConfigEntry,
 } from "./client.js";
 export {
   PanelBinder,

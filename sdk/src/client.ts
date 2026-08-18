@@ -1,7 +1,7 @@
 // AirzClient: the top-level entry point. Wraps the Rundown API (/api/v1) into
 // typed resource namespaces plus a live SSE stream and diffing binding-sync.
 
-import { Http } from "./http.js";
+import { Http, ApiError } from "./http.js";
 import { RundownStream, type StreamOptions } from "./stream.js";
 import { BindingSync, type BindingSyncOptions } from "./sync.js";
 import type {
@@ -39,6 +39,7 @@ export class AirzClient {
   readonly items: ItemsApi;
   readonly templates: TemplatesApi;
   readonly assets: AssetsApi;
+  readonly webConfigs: WebConfigsApi;
 
   constructor(opts: ClientOptions) {
     this.http = new Http(normalizeBase(opts.baseUrl), opts.token ?? null);
@@ -48,6 +49,7 @@ export class AirzClient {
     this.items = new ItemsApi(this.http);
     this.templates = new TemplatesApi(this.http);
     this.assets = new AssetsApi(this.http);
+    this.webConfigs = new WebConfigsApi(this.http);
   }
 
   /** Set/replace the bearer token used for subsequent requests + streams. */
@@ -305,6 +307,70 @@ class AssetsApi {
       method: "POST",
       query: { name, folder },
       rawBody: data instanceof Blob ? data : new Blob([data]),
+    });
+  }
+}
+
+export interface WebConfigEntry {
+  key: string;
+  value: unknown;
+  updatedAt?: string;
+}
+
+/**
+ * First-class controller-side config store (`/api/v1/web-configs`). This is the
+ * clean home for web configs — no item pollution, no `{type,value}` wrapping,
+ * no replace/wipe. When the controller exposes it, the remote-config helpers use
+ * it automatically; otherwise they fall back to the dedicated-item stash.
+ */
+class WebConfigsApi {
+  private _available?: boolean;
+
+  constructor(private readonly http: Http) {}
+
+  /** Whether the controller exposes the endpoint (probed once, then cached). */
+  async available(): Promise<boolean> {
+    if (this._available !== undefined) return this._available;
+    try {
+      await this.http.request<unknown>("/web-configs");
+      this._available = true;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) this._available = false;
+      else return false; // transient error — do not cache
+    }
+    return this._available ?? false;
+  }
+
+  /** GET /web-configs — list stored config keys. */
+  async keys(): Promise<string[]> {
+    const res = await this.http.request<{ keys?: string[] }>("/web-configs");
+    return res.keys ?? [];
+  }
+
+  /** GET /web-configs/<key> — undefined if not set. */
+  async get(key: string): Promise<WebConfigEntry | undefined> {
+    try {
+      return await this.http.request<WebConfigEntry>(
+        `/web-configs/${encodeURIComponent(key)}`,
+      );
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return undefined;
+      throw e;
+    }
+  }
+
+  /** PUT /web-configs/<key> — create or replace. */
+  async put(key: string, value: unknown): Promise<void> {
+    await this.http.request(`/web-configs/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: { value },
+    });
+  }
+
+  /** DELETE /web-configs/<key>. */
+  async remove(key: string): Promise<void> {
+    await this.http.request(`/web-configs/${encodeURIComponent(key)}`, {
+      method: "DELETE",
     });
   }
 }

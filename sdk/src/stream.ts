@@ -31,6 +31,7 @@ export const RUNDOWN_EVENTS = [
   "asset.deleted",
   "lock.changed",
   "presence.update",
+  "webconfig.updated",
 ] as const;
 
 export type RundownEventName = (typeof RUNDOWN_EVENTS)[number];

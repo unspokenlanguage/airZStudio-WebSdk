@@ -13,7 +13,7 @@ export class ApiError extends Error {
 }
 
 export interface HttpOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** JSON body — serialized automatically. */
   body?: unknown;
   /**

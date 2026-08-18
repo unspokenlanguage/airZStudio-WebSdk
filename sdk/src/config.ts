@@ -326,6 +326,11 @@ export async function describeTemplateBindings(
 
 const CONFIG_PREFIX = "_airzWebConfig_";
 
+/** Namespaced key used in the first-class `/web-configs` store. */
+function mappingKey(appId: string): string {
+  return `mapping:${appId}`;
+}
+
 /** Unwrap a stored databinding value (`{type,value}` → value; else as-is). */
 function unwrapValue(v: unknown): unknown {
   if (v && typeof v === "object" && "value" in (v as Record<string, unknown>)) {
@@ -367,6 +372,14 @@ export async function autoDiscoverRemoteConfig(
   client: AirzClient,
   appId: string,
 ): Promise<RemoteConfigLocation | undefined> {
+  // Prefer the first-class store when the controller exposes it.
+  if (await client.webConfigs.available()) {
+    const entry = await client.webConfigs.get(mappingKey(appId));
+    const config = entry ? parseStoredConfig(entry.value) : undefined;
+    // rundown/item are irrelevant in endpoint mode (0 sentinel).
+    return config ? { config, targetRundownId: 0, targetItemId: 0 } : undefined;
+  }
+
   const key = CONFIG_PREFIX + appId;
   const rundowns = await client.rundowns.list();
   let latest: RemoteConfigLocation | undefined;
@@ -438,12 +451,19 @@ export async function saveRemoteConfig(
   appId: string,
   config: MappingConfig,
 ): Promise<{ rundownId: number; itemId: number } | undefined> {
+  const stamped: MappingConfig = { ...config, lastModified: Date.now() };
+
+  // Prefer the clean endpoint: no item, no wrapping, no wipe.
+  if (await client.webConfigs.available()) {
+    await client.webConfigs.put(mappingKey(appId), stamped);
+    return undefined;
+  }
+
   const target = await ensureConfigItem(client);
   if (!target) return undefined;
 
   const item = await client.items.get(target.rundownId, target.itemId);
   const key = CONFIG_PREFIX + appId;
-  const stamped: MappingConfig = { ...config, lastModified: Date.now() };
   // Preserve any OTHER app configs already on the item; replace ours.
   const merged: Record<string, unknown> = { ...(item?.data ?? {}) };
   merged[key] = JSON.stringify(stamped);
@@ -458,6 +478,10 @@ export async function loadRemoteConfig(
   rundownId: number,
   itemId: number,
 ): Promise<MappingConfig | undefined> {
+  if (await client.webConfigs.available()) {
+    const entry = await client.webConfigs.get(mappingKey(appId));
+    return entry ? parseStoredConfig(entry.value) : undefined;
+  }
   const item = await client.items.get(rundownId, itemId);
   if (!item) return undefined;
   return parseStoredConfig(item.data[CONFIG_PREFIX + appId]);
@@ -539,6 +563,7 @@ export function discoverAndWatchRemoteConfig(
     stream.on("item.updated", schedule),
     stream.on("item.created", schedule),
     stream.on("rundown.changed", schedule),
+    stream.on("webconfig.updated", schedule), // endpoint-mode live-sync
   ];
   void scan();
 
