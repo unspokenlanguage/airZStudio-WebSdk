@@ -187,10 +187,26 @@ class ItemsApi {
     rundownId: number,
     itemId: number,
     data: BindingData,
+    options?: { mode?: "live" | "staged" },
   ): Promise<RundownItem> {
     return this.http.request(
       `/rundowns/${rundownId}/items/${itemId}/data`,
-      { method: "PATCH", body: { data } },
+      { 
+        method: "PATCH", 
+        body: { data },
+        query: options?.mode ? { mode: options.mode } : undefined,
+      },
+    );
+  }
+
+  /** POST /rundowns/<id>/items/<itemId>/push_staged — takes staged data to live */
+  pushStaged(
+    rundownId: number,
+    itemId: number,
+  ): Promise<RundownItem> {
+    return this.http.request(
+      `/rundowns/${rundownId}/items/${itemId}/push_staged`,
+      { method: "POST" },
     );
   }
 
@@ -202,10 +218,15 @@ class ItemsApi {
     rundownId: number,
     itemId: number,
     triggerName: string,
+    options?: { flushStaged?: boolean },
   ): Promise<void> {
     await this.http.request(
       `/rundowns/${rundownId}/items/${itemId}/trigger`,
-      { method: "POST", body: { trigger: triggerName } },
+      { 
+        method: "POST", 
+        body: { trigger: triggerName },
+        query: options?.flushStaged ? { flush_staged: "true" } : undefined,
+      },
     );
   }
 
@@ -251,10 +272,15 @@ class ItemsApi {
     });
   }
 
-  /** A diffing writer bound to one item — sends only changed bindings. */
   bindingSync(opts: BindingSyncOptions): BindingSync {
     return new BindingSync(
-      (rundownId, itemId, data) => this.setData(rundownId, itemId, data),
+      async (rundownId, itemId, data, options) => {
+        const res = await this.setData(rundownId, itemId, data, options);
+        if (!options?.mode || options.mode === "live") {
+          await this.pushStaged(rundownId, itemId).catch(() => {});
+        }
+        return res;
+      },
       opts,
     );
   }

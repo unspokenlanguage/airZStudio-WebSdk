@@ -181,6 +181,8 @@ export interface PanelSpec<Source = any, Slice = any> {
   repeats?: Repeat<Slice>[];
   /** Debounce for this panel's writes (ms). */
   debounceMs?: number;
+  /** Whether updates go to live or staged. Override binder options. */
+  mode?: "live" | "staged";
 }
 
 interface Panel {
@@ -193,6 +195,8 @@ interface Panel {
 export interface PanelBinderOptions {
   /** How image bindings are resolved. Defaults to pass-through URLs. */
   images?: ImageResolver;
+  /** Global mode for all panels. Defaults to live. */
+  mode?: "live" | "staged";
 }
 
 /**
@@ -203,12 +207,14 @@ export interface PanelBinderOptions {
 export class PanelBinder<Source = any> {
   private readonly panels = new Map<string, Panel>();
   private readonly images: ImageResolver;
+  private readonly mode?: "live" | "staged";
 
   constructor(
     private readonly client: AirzClient,
     opts: PanelBinderOptions = {},
   ) {
     this.images = opts.images ?? passthroughImages;
+    this.mode = opts.mode;
   }
 
   /** Register (or replace) a panel and its target item. */
@@ -218,6 +224,7 @@ export class PanelBinder<Source = any> {
       rundownId: spec.target.rundownId,
       itemId: spec.target.itemId,
       ...(spec.debounceMs !== undefined ? { debounceMs: spec.debounceMs } : {}),
+      ...(spec.mode || this.mode ? { mode: spec.mode || this.mode } : {}),
     });
     this.panels.set(spec.name, { spec, sync });
     return this;

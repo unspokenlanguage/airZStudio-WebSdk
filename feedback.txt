@@ -1,170 +1,76 @@
-[11:48:42.203] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"17.14"},"party_2_name":{"type":"string","value":"AK Parti"},"party_2_perc":{"type":"string","value":"17.14"},"party_3_name":{"type":"string","value":"YRP"},"party_3_perc":{"type":"string","value":"17.10"},"party_5_perc":{"type":"string","value":"16.11"},"party1/party_perc":{"type":"string","value":"17.18"},"party2/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.14"},"party3/party_perc":{"type":"string","value":"17.10"},"party5/party_perc":{"type":"string","value":"16.11"},"party3/party_name":{"type":"string","value":"YRP"}})
-[11:48:42.204]  Updating preview "rive_editor_preview" with bindings
-[11:48:42.206]  Preview update complete
+[15:35:09.007] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"19.02"},"party_2_perc":{"type":"string","value":"19.02"},"party_3_perc":{"type":"string","value":"18.71"},"party_4_perc":{"type":"string","value":"16.16"},"party_5_perc":{"type":"string","value":"13.51"},"party1/party_perc":{"type":"string","value":"21.02"},"party2/party_perc":{"type":"string","value":"19.02"},"party3/party_perc":{"type":"string","value":"18.71"},"party4/party_perc":{"type":"string","value":"16.16"},"party5/party_perc":{"type":"string","value":"13.51"}})
+[15:35:09.014]  Updating preview "rive_editor_preview" with bindings
+[15:35:09.014]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:51.617] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}})
-[11:48:51.620]  Updating preview "rive_editor_preview" with bindings
-[11:48:51.620]  Preview update complete
+[15:35:13.996] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"19.22"},"party_2_perc":{"type":"string","value":"19.22"},"party_3_perc":{"type":"string","value":"18.58"},"party_4_perc":{"type":"string","value":"16.32"},"party_5_perc":{"type":"string","value":"13.60"},"party1/party_perc":{"type":"string","value":"20.82"},"party2/party_perc":{"type":"string","value":"19.22"},"party3/party_perc":{"type":"string","value":"18.58"},"party4/party_perc":{"type":"string","value":"16.32"},"party5/party_perc":{"type":"string","value":"13.60"}})
+[15:35:14.004]  Updating preview "rive_editor_preview" with bindings
+[15:35:14.005]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:52.172]  App resumed - checking connections...
-[11:48:54.436] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:54.439]  Trigger pressed: TAKE OUT
-[11:48:54.439] rawBindings --> {party_1_perc: {type: string, value: 17.10}, party_2_name: {type: string, value: YRP}, party_2_perc: {type: string, value: 17.10}, party_3_name: {type: string, value: AK Parti}, party_3_perc: {type: string, value: 17.07}, party_5_perc: {type: string, value: 16.04}, party1/party_perc: {type: string, value: 17.22}, party2/party_name: {type: string, value: YRP}, party2/party_perc: {type: string, value: 17.10}, party3/party_perc: {type: string, value: 17.07}, party5/party_perc: {type: string, value: 16.04}, party3/party_name: {type: string, value: AK Parti}}
-[11:48:54.440]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
-[11:48:54.440] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:54.441] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
-[11:48:54.441] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:54.441] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:54.442]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:54.442]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_2_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party1/party_perc\":{\"type\":\"string\",\"value\":\"17.22\"},\"party2/party_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"}}}"
-[11:48:54.442]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:54.442]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
-[11:48:54.442]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
-[11:48:54.442]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
-[11:48:54.475] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:54.475] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[15:35:18.985] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"19.30"},"party_2_perc":{"type":"string","value":"19.30"},"party_3_perc":{"type":"string","value":"18.52"},"party_4_perc":{"type":"string","value":"16.25"},"party_5_perc":{"type":"string","value":"13.52"},"party1/party_perc":{"type":"string","value":"20.91"},"party2/party_perc":{"type":"string","value":"19.30"},"party3/party_perc":{"type":"string","value":"18.52"},"party4/party_perc":{"type":"string","value":"16.25"},"party5/party_perc":{"type":"string","value":"13.52"}})
+[15:35:18.988]  Updating preview "rive_editor_preview" with bindings
+[15:35:18.988]  Preview update complete
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[15:35:23.990] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"19.45"},"party_2_perc":{"type":"string","value":"19.45"},"party_4_perc":{"type":"string","value":"16.15"},"party_5_perc":{"type":"string","value":"13.59"},"party1/party_perc":{"type":"string","value":"20.78"},"party2/party_perc":{"type":"string","value":"19.45"},"party4/party_perc":{"type":"string","value":"16.15"},"party5/party_perc":{"type":"string","value":"13.59"}})
+[15:35:23.993]  Updating preview "rive_editor_preview" with bindings
+[15:35:23.993]  Preview update complete
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[15:35:28.910] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"İYİ Parti"},"party_1_perc":{"type":"string","value":"19.54"},"party_2_name":{"type":"string","value":"MHP"},"party_2_perc":{"type":"string","value":"19.54"},"party_3_name":{"type":"string","value":"CHP"},"party_3_perc":{"type":"string","value":"18.56"},"party_4_name":{"type":"string","value":"AK Parti"},"party_4_perc":{"type":"string","value":"16.07"},"party_5_perc":{"type":"string","value":"13.49"},"party_5_name":{"type":"string","value":"YSP"},"party1/party_name":{"type":"string","value":"İYİ Parti"},"party1/party_perc":{"type":"string","value":"20.88"},"party2/party_name":{"type":"string","value":"MHP"},"party2/party_perc":{"type":"string","value":"19.54"},"party3/party_perc":{"type":"string","value":"18.56"},"party4/party_name":{"type":"string","value":"AK Parti"},"party4/party_perc":{"type":"string","value":"16.07"},"party5/party_name":{"type":"string","value":"YSP"},"party5/party_perc":{"type":"string","value":"13.49"},"party3/party_name":{"type":"string","value":"CHP"}})
+[15:35:28.915]  Updating preview "rive_editor_preview" with bindings
+[15:35:28.916]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
+[15:35:31.507]  App resumed - checking connections...
+[15:35:33.366]  App resumed - checking connections...
+[15:35:38.901] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"19.50"},"party_2_perc":{"type":"string","value":"19.50"},"party_3_perc":{"type":"string","value":"18.43"},"party_4_perc":{"type":"string","value":"16.26"},"party_5_perc":{"type":"string","value":"13.46"},"party1/party_perc":{"type":"string","value":"20.74"},"party2/party_perc":{"type":"string","value":"19.50"},"party3/party_perc":{"type":"string","value":"18.43"},"party4/party_perc":{"type":"string","value":"16.26"},"party5/party_perc":{"type":"string","value":"13.46"}})
+[15:35:38.907]  Updating preview "rive_editor_preview" with bindings
+[15:35:38.908]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:55.178] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:55.184]  Trigger pressed: TAKE
-[11:48:55.184] rawBindings --> {party_1_perc: {type: string, value: 17.10}, party_2_name: {type: string, value: YRP}, party_2_perc: {type: string, value: 17.10}, party_3_name: {type: string, value: AK Parti}, party_3_perc: {type: string, value: 17.07}, party_5_perc: {type: string, value: 16.04}, party1/party_perc: {type: string, value: 17.22}, party2/party_name: {type: string, value: YRP}, party2/party_perc: {type: string, value: 17.10}, party3/party_perc: {type: string, value: 17.07}, party5/party_perc: {type: string, value: 16.04}, party3/party_name: {type: string, value: AK Parti}, TAKE OUT: false}
-[11:48:55.185]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}},"currentInputs":{},"triggerName":"TAKE","source":"api_trigger"}
-[11:48:55.185] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:55.185] [embedded]  Triggered 'TAKE' via ViewModel handle
-[11:48:55.186] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:55.186] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:55.186]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:55.186]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_2_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party1/party_perc\":{\"type\":\"string\",\"value\":\"17.22\"},\"party2/party_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"TAKE OUT\":false}}"
-[11:48:55.186]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:55.187]  INVOKE RIVE TRIGGER → Layer 1225: TAKE on 1 engine(s)
-[11:48:55.187]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE"
-[11:48:55.187]  Sent "CG 1-1225 INVOKE 0 "TAKE"" to 0/1 engines
-[11:48:55.222] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:55.223] [CONTROLLER]  Triggered 'TAKE' via ViewModel handle
+[15:35:41.425] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"19.62"},"party_2_perc":{"type":"string","value":"19.62"},"party_4_perc":{"type":"string","value":"16.33"},"party_5_perc":{"type":"string","value":"13.44"},"party1/party_perc":{"type":"string","value":"20.62"},"party2/party_perc":{"type":"string","value":"19.62"},"party4/party_perc":{"type":"string","value":"16.33"},"party5/party_perc":{"type":"string","value":"13.44"}})
+[15:35:41.432]  Updating preview "rive_editor_preview" with bindings
+[15:35:41.432]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
+[15:35:43.309] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"YRP"},"party_1_perc":{"type":"string","value":"18.05"},"party_2_name":{"type":"string","value":"YSP"},"party_2_perc":{"type":"string","value":"18.05"},"party_3_name":{"type":"string","value":"CHP"},"party_3_perc":{"type":"string","value":"17.52"},"party_4_name":{"type":"string","value":"İYİ Parti"},"party_4_perc":{"type":"string","value":"15.93"},"party_5_perc":{"type":"string","value":"14.71"},"party_5_name":{"type":"string","value":"MHP"},"party1/party_name":{"type":"string","value":"YRP"},"party1/party_perc":{"type":"string","value":"21.27"},"party2/party_name":{"type":"string","value":"YSP"},"party2/party_perc":{"type":"string","value":"18.05"},"party3/party_perc":{"type":"string","value":"17.52"},"party4/party_name":{"type":"string","value":"İYİ Parti"},"party4/party_perc":{"type":"string","value":"15.93"},"party5/party_name":{"type":"string","value":"MHP"},"party5/party_perc":{"type":"string","value":"14.71"},"party3/party_name":{"type":"string","value":"CHP"}})
+[15:35:43.311]  Updating preview "rive_editor_preview" with bindings
+[15:35:43.312]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
+[NativeAudioCapture] 📊 720.0s captured, 34560000 frames total (mic+loopback)
+[15:35:48.845] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"MHP"},"party_1_perc":{"type":"string","value":"19.30"},"party_2_name":{"type":"string","value":"YSP"},"party_2_perc":{"type":"string","value":"19.30"},"party_3_name":{"type":"string","value":"İYİ Parti"},"party_3_perc":{"type":"string","value":"19.28"},"party_4_name":{"type":"string","value":"CHP"},"party_4_perc":{"type":"string","value":"16.75"},"party_5_perc":{"type":"string","value":"13.20"},"party_5_name":{"type":"string","value":"YRP"},"party1/party_name":{"type":"string","value":"MHP"},"party1/party_perc":{"type":"string","value":"20.09"},"party2/party_name":{"type":"string","value":"YSP"},"party2/party_perc":{"type":"string","value":"19.30"},"party3/party_perc":{"type":"string","value":"19.28"},"party4/party_name":{"type":"string","value":"CHP"},"party4/party_perc":{"type":"string","value":"16.75"},"party5/party_name":{"type":"string","value":"YRP"},"party5/party_perc":{"type":"string","value":"13.20"},"party3/party_name":{"type":"string","value":"İYİ Parti"}})
+[15:35:48.847]  Updating preview "rive_editor_preview" with bindings
+[15:35:48.848]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:55.875] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:55.878]  Trigger pressed: TAKE OUT
-[11:48:55.878] rawBindings --> {party_1_perc: {type: string, value: 17.10}, party_2_name: {type: string, value: YRP}, party_2_perc: {type: string, value: 17.10}, party_3_name: {type: string, value: AK Parti}, party_3_perc: {type: string, value: 17.07}, party_5_perc: {type: string, value: 16.04}, party1/party_perc: {type: string, value: 17.22}, party2/party_name: {type: string, value: YRP}, party2/party_perc: {type: string, value: 17.10}, party3/party_perc: {type: string, value: 17.07}, party5/party_perc: {type: string, value: 16.04}, party3/party_name: {type: string, value: AK Parti}, TAKE OUT: false, TAKE: false}
-[11:48:55.881]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
-[11:48:55.881] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:55.882] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
-[11:48:55.882] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:55.882] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:55.882]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:55.884]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_2_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party1/party_perc\":{\"type\":\"string\",\"value\":\"17.22\"},\"party2/party_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"TAKE OUT\":false,\"TAKE\":false}}"
-[11:48:55.884]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:55.884]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
-[11:48:55.884]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
-[11:48:55.884]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
-[11:48:55.940] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:55.940] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[NativeAudioCapture] [MIX-SRC] mic=8460/8460 loop=8459/8460 video=0/8460 dl=0/8460 lk=0/8460 silent=0/8460
+[15:35:53.896] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"YRP"},"party_1_perc":{"type":"string","value":"17.15"},"party_2_name":{"type":"string","value":"AK Parti"},"party_2_perc":{"type":"string","value":"17.15"},"party_3_name":{"type":"string","value":"CHP"},"party_3_perc":{"type":"string","value":"16.90"},"party_4_name":{"type":"string","value":"YSP"},"party_4_perc":{"type":"string","value":"16.65"},"party_5_perc":{"type":"string","value":"16.60"},"party_5_name":{"type":"string","value":"MHP"},"party1/party_name":{"type":"string","value":"YRP"},"party1/party_perc":{"type":"string","value":"17.36"},"party2/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.15"},"party3/party_perc":{"type":"string","value":"16.90"},"party4/party_name":{"type":"string","value":"YSP"},"party4/party_perc":{"type":"string","value":"16.65"},"party5/party_name":{"type":"string","value":"MHP"},"party5/party_perc":{"type":"string","value":"16.60"},"party3/party_name":{"type":"string","value":"CHP"}})
+[15:35:53.898]  Updating preview "rive_editor_preview" with bindings
+[15:35:53.899]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:56.617] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}})
-[11:48:56.620]  Updating preview "rive_editor_preview" with bindings
-[11:48:56.620]  Preview update complete
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:56.709] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:56.714]  Trigger pressed: TAKE
-[11:48:56.714] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}}
-[11:48:56.715]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE","source":"api_trigger"}
-[11:48:56.716] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:56.716] [embedded]  Triggered 'TAKE' via ViewModel handle
-[11:48:56.717] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:56.717] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:56.718]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:56.718]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"}}}"
-[11:48:56.718]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:56.718]  INVOKE RIVE TRIGGER → Layer 1225: TAKE on 1 engine(s)
-[11:48:56.718]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE"
-[11:48:56.718]  Sent "CG 1-1225 INVOKE 0 "TAKE"" to 0/1 engines
-[11:48:56.800] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:56.801] [CONTROLLER]  Triggered 'TAKE' via ViewModel handle
+[15:35:58.898] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"YRP"},"party_1_perc":{"type":"string","value":"17.02"},"party_2_name":{"type":"string","value":"AK Parti"},"party_2_perc":{"type":"string","value":"17.02"},"party_3_name":{"type":"string","value":"CHP"},"party_3_perc":{"type":"string","value":"16.96"},"party_4_name":{"type":"string","value":"YSP"},"party_4_perc":{"type":"string","value":"16.67"},"party_5_perc":{"type":"string","value":"16.66"},"party_5_name":{"type":"string","value":"MHP"},"party1/party_name":{"type":"string","value":"YRP"},"party1/party_perc":{"type":"string","value":"17.40"},"party2/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.02"},"party3/party_perc":{"type":"string","value":"16.96"},"party4/party_name":{"type":"string","value":"YSP"},"party4/party_perc":{"type":"string","value":"16.67"},"party5/party_name":{"type":"string","value":"MHP"},"party5/party_perc":{"type":"string","value":"16.66"},"party3/party_name":{"type":"string","value":"CHP"}})
+[15:35:58.900]  Updating preview "rive_editor_preview" with bindings
+[15:35:58.900]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:57.350] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:57.352]  Trigger pressed: TAKE OUT
-[11:48:57.352] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}, TAKE: false}
-[11:48:57.354]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
-[11:48:57.354] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:57.355] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
-[11:48:57.355] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:57.355] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:57.355]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:57.356]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"TAKE\":false}}"
-[11:48:57.356]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:57.356]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
-[11:48:57.356]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
-[11:48:57.356]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
-[11:48:57.403] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:57.403] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[15:36:01.013] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"MHP"},"party_1_perc":{"type":"string","value":"23.32"},"party_2_name":{"type":"string","value":"CHP"},"party_2_perc":{"type":"string","value":"23.32"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"20.63"},"party_4_name":{"type":"string","value":"YRP"},"party_4_perc":{"type":"string","value":"14.69"},"party_5_perc":{"type":"string","value":"9.72"},"party_5_name":{"type":"string","value":"YSP"},"party1/party_name":{"type":"string","value":"MHP"},"party1/party_perc":{"type":"string","value":"27.10"},"party2/party_name":{"type":"string","value":"CHP"},"party2/party_perc":{"type":"string","value":"23.32"},"party3/party_perc":{"type":"string","value":"20.63"},"party4/party_name":{"type":"string","value":"YRP"},"party4/party_perc":{"type":"string","value":"14.69"},"party5/party_name":{"type":"string","value":"YSP"},"party5/party_perc":{"type":"string","value":"9.72"},"party3/party_name":{"type":"string","value":"AK Parti"}})
+[15:36:01.016]  Updating preview "rive_editor_preview" with bindings
+[15:36:01.017]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
 [AirPlayStudio/Win] setLiveKitMuted: true
 [NativeAudioCapture] 🔇 LiveKit audio MUTED
+[15:36:03.895] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"23.38"},"party_2_perc":{"type":"string","value":"23.38"},"party_3_perc":{"type":"string","value":"20.39"},"party_4_perc":{"type":"string","value":"15.00"},"party_5_perc":{"type":"string","value":"9.60"},"party1/party_perc":{"type":"string","value":"27.18"},"party2/party_perc":{"type":"string","value":"23.38"},"party3/party_perc":{"type":"string","value":"20.39"},"party4/party_perc":{"type":"string","value":"15.00"},"party5/party_perc":{"type":"string","value":"9.60"}})
+[15:36:03.897]  Updating preview "rive_editor_preview" with bindings
+[15:36:03.897]  Preview update complete
 [AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:58.235] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:58.238]  Trigger pressed: TAKE
-[11:48:58.238] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}, TAKE: false, TAKE OUT: false}
-[11:48:58.240]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE","source":"api_trigger"}
-[11:48:58.240] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:58.240] [embedded]  Triggered 'TAKE' via ViewModel handle
-[11:48:58.241] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:58.241] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:58.241]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:58.241]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"TAKE\":false,\"TAKE OUT\":false}}"
-[11:48:58.242]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:58.242]  INVOKE RIVE TRIGGER → Layer 1225: TAKE on 1 engine(s)
-[11:48:58.242]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE"
-[11:48:58.242]  Sent "CG 1-1225 INVOKE 0 "TAKE"" to 0/1 engines
-[11:48:58.271] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:58.271] [CONTROLLER]  Triggered 'TAKE' via ViewModel handle
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[11:48:58.804] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
-[11:48:58.808]  Trigger pressed: TAKE OUT
-[11:48:58.808] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}, TAKE: false, TAKE OUT: false}
-[11:48:58.809]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
-[11:48:58.810] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:58.810] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
-[11:48:58.812] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
-[11:48:58.812] [CONTROLLER]  Remote Sync: 1 server(s)
-[11:48:58.815] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
-[11:48:58.815] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
-[11:48:58.817]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
-[11:48:58.817]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"TAKE\":false,\"TAKE OUT\":false}}"
-[11:48:58.817]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
-[11:48:58.817]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
-[11:48:58.817]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
-[11:48:58.817]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[AirPlayStudio/Win] setLiveKitMuted: true
-[NativeAudioCapture] 🔇 LiveKit audio MUTED
-[NativeAudioCapture] 📊 2160.0s captured, 103680000 frames total (mic+loopback)
-[NativeAudioCapture] [MIX-SRC] mic=8459/8460 loop=8459/8460 video=0/8460 dl=0/8460 lk=0/8460 silent=0/8460

@@ -19,6 +19,7 @@ export interface BindingSyncOptions {
   /** Called after a successful PATCH with the keys that were sent. */
   onFlush?: (changed: BindingData) => void;
   onError?: (err: unknown) => void;
+  mode?: "live" | "staged";
 }
 
 /** Value equality good enough for binding scalars and small JSON values. */
@@ -39,6 +40,7 @@ type Patcher = (
   rundownId: number,
   itemId: number,
   data: BindingData,
+  options?: { mode?: "live" | "staged" },
 ) => Promise<unknown>;
 
 /**
@@ -97,7 +99,7 @@ export class BindingSync {
 
     this.inFlight = (async () => {
       try {
-        await this.patch(this.opts.rundownId, this.opts.itemId, changed);
+        await this.patch(this.opts.rundownId, this.opts.itemId, changed, { mode: this.opts.mode });
         Object.assign(this.lastSent, changed);
         this.opts.onFlush?.(changed);
       } catch (err) {

@@ -45,6 +45,8 @@ export function App() {
   });
   const setSelector = (name: string, value: string) => setSelectors((s) => ({ ...s, [name]: value }));
 
+  const [isStaged, setIsStaged] = useState(false);
+
   // Transform simulator data into the generic "feed" object that starterConfig expects
   const feed = useMemo(() => {
     // Calculate total national votes for candidates and parties
@@ -204,12 +206,12 @@ export function App() {
   // Maintain a stable PanelBinder so the diffing engine (BindingSync) persists between 2-second ticks
   const binder = useMemo(() => {
     if (!client) return null;
-    const b = new PanelBinder(client, { images: imageResolver });
+    const b = new PanelBinder(client, { images: imageResolver, mode: isStaged ? "staged" : "live" });
     for (const pc of configured) {
       b.add(configToPanelSpec(pc, { selectors }));
     }
     return b;
-  }, [client, imageResolver, configuredKey, selectorsKey]);
+  }, [client, imageResolver, configuredKey, selectorsKey, isStaged]);
 
   const pushPanels = async (list: PanelConfig[], feedData: typeof feed = feed) => {
     if (!binder || list.length === 0) return;
@@ -238,6 +240,24 @@ export function App() {
     } catch (e) {
       setErr(String(e));
       pushLog(`✕ ${String(e)}`);
+    }
+  };
+
+  const takeToAir = async () => {
+    if (!client) {
+      setErr("Connect first — open ⚙ Configure.");
+      return;
+    }
+    setErr(null);
+    setPushing(true);
+    try {
+      await Promise.all(configured.map(p => client.items.pushStaged(p.rundownId!, p.itemId!)));
+      pushLog(`→ taken to air ${configured.length} panel(s)`);
+    } catch (e) {
+      setErr(String(e));
+      pushLog(`✕ ${String(e)}`);
+    } finally {
+      setPushing(false);
     }
   };
 
@@ -327,6 +347,21 @@ export function App() {
         <span style={S.brand}>airZ · Election Desk</span>
         <span style={S.sub}>{client ? "connected" : "not connected"}</span>
         <span style={{ flex: 1 }} />
+        
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isStaged ? '#facc15' : '#aaa', fontWeight: 'bold', marginRight: '16px' }}>
+          <input 
+            type="checkbox" 
+            checked={isStaged} 
+            onChange={e => setIsStaged(e.target.checked)} 
+          />
+          STAGED MODE
+        </label>
+        
+        {isStaged && (
+          <button style={{ ...S.ghost, backgroundColor: '#dc2626', color: 'white', fontWeight: 'bold', marginRight: '16px' }} onClick={takeToAir} disabled={pushing}>
+            TAKE TO AIR
+          </button>
+        )}
         {pushing && <span style={S.syncingBadge}>Uploading & Syncing...</span>}
         <button style={S.ghost} onClick={() => {
           configStore.clear();
@@ -399,14 +434,14 @@ export function App() {
               const panel = config.panels.find(p => p.panelId === "city-results");
               const field = panel?.fields.find(f => f.from === "VER");
               if (panel?.rundownId && panel?.itemId && field?.to) {
-                client?.items.trigger(panel.rundownId, panel.itemId, field.to).catch(e => setErr(String(e)));
+                client?.items.trigger(panel.rundownId, panel.itemId, field.to, { flushStaged: isStaged }).catch(e => setErr(String(e)));
               }
             }}
             onAllClick={() => {
               const panel = config.panels.find(p => p.panelId === "city-results");
               const field = panel?.fields.find(f => f.from === "ALL");
               if (panel?.rundownId && panel?.itemId && field?.to) {
-                client?.items.trigger(panel.rundownId, panel.itemId, field.to).catch(e => setErr(String(e)));
+                client?.items.trigger(panel.rundownId, panel.itemId, field.to, { flushStaged: isStaged }).catch(e => setErr(String(e)));
               }
             }}
             data={currentCityData}
