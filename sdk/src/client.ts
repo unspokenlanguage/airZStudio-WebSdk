@@ -294,6 +294,16 @@ class AssetsApi {
   constructor(private readonly http: Http) {}
 
   /**
+   * GET /assets — list existing assets, optionally filtered by folder and type.
+   */
+  async list(query?: { folder?: string; type?: string }): Promise<UploadedAsset[]> {
+    const res = await this.http.request<{ assets: UploadedAsset[] }>("/assets", {
+      query,
+    });
+    return res.assets || [];
+  }
+
+  /**
    * POST /assets?name=&folder= — upload raw image/media bytes. The controller
    * copies the file into its managed store and returns a `localPath` the render
    * pipeline resolves, ideal for `image`-typed bindings.

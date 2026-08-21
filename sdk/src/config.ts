@@ -145,7 +145,14 @@ export function configToPanelSpec(
       const base =
         fc.const !== undefined ? fc.const : fc.from ? pick(slice, fc.from) : undefined;
       const formatted = formatValue(base, fc.format);
-      if (fc.image) return image(formatted == null ? undefined : String(formatted));
+      
+      // Auto-detect image paths if the user forgot to check the 'img' box
+      const isImage = fc.image || (
+        typeof formatted === 'string' && 
+        /\.(png|jpg|jpeg|svg|webp|gif|bmp)(\?.*)?$/i.test(formatted)
+      );
+      
+      if (isImage) return image(formatted == null ? undefined : String(formatted));
       return formatted;
     },
   }));
@@ -374,10 +381,16 @@ export async function autoDiscoverRemoteConfig(
 ): Promise<RemoteConfigLocation | undefined> {
   // Prefer the first-class store when the controller exposes it.
   if (await client.webConfigs.available()) {
-    const entry = await client.webConfigs.get(mappingKey(appId));
-    const config = entry ? parseStoredConfig(entry.value) : undefined;
-    // rundown/item are irrelevant in endpoint mode (0 sentinel).
-    return config ? { config, targetRundownId: 0, targetItemId: 0 } : undefined;
+    try {
+      const entry = await client.webConfigs.get(mappingKey(appId));
+      const config = entry ? parseStoredConfig(entry.value) : undefined;
+      if (config) {
+        // rundown/item are irrelevant in endpoint mode (0 sentinel).
+        return { config, targetRundownId: 0, targetItemId: 0 };
+      }
+    } catch (e) {
+      console.warn("webConfigs.get failed (CORS?), falling back to item search", e);
+    }
   }
 
   const key = CONFIG_PREFIX + appId;
@@ -455,8 +468,12 @@ export async function saveRemoteConfig(
 
   // Prefer the clean endpoint: no item, no wrapping, no wipe.
   if (await client.webConfigs.available()) {
-    await client.webConfigs.put(mappingKey(appId), stamped);
-    return undefined;
+    try {
+      await client.webConfigs.put(mappingKey(appId), stamped);
+      return undefined;
+    } catch (e) {
+      console.warn("webConfigs.put failed (CORS?), falling back to item storage", e);
+    }
   }
 
   const target = await ensureConfigItem(client);
@@ -479,8 +496,12 @@ export async function loadRemoteConfig(
   itemId: number,
 ): Promise<MappingConfig | undefined> {
   if (await client.webConfigs.available()) {
-    const entry = await client.webConfigs.get(mappingKey(appId));
-    return entry ? parseStoredConfig(entry.value) : undefined;
+    try {
+      const entry = await client.webConfigs.get(mappingKey(appId));
+      if (entry) return parseStoredConfig(entry.value);
+    } catch (e) {
+      console.warn("webConfigs.get failed (CORS?), falling back to item storage", e);
+    }
   }
   const item = await client.items.get(rundownId, itemId);
   if (!item) return undefined;

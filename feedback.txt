@@ -1,0 +1,170 @@
+[11:48:42.203] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"17.14"},"party_2_name":{"type":"string","value":"AK Parti"},"party_2_perc":{"type":"string","value":"17.14"},"party_3_name":{"type":"string","value":"YRP"},"party_3_perc":{"type":"string","value":"17.10"},"party_5_perc":{"type":"string","value":"16.11"},"party1/party_perc":{"type":"string","value":"17.18"},"party2/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.14"},"party3/party_perc":{"type":"string","value":"17.10"},"party5/party_perc":{"type":"string","value":"16.11"},"party3/party_name":{"type":"string","value":"YRP"}})
+[11:48:42.204]  Updating preview "rive_editor_preview" with bindings
+[11:48:42.206]  Preview update complete
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:51.617] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}})
+[11:48:51.620]  Updating preview "rive_editor_preview" with bindings
+[11:48:51.620]  Preview update complete
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:52.172]  App resumed - checking connections...
+[11:48:54.436] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:54.439]  Trigger pressed: TAKE OUT
+[11:48:54.439] rawBindings --> {party_1_perc: {type: string, value: 17.10}, party_2_name: {type: string, value: YRP}, party_2_perc: {type: string, value: 17.10}, party_3_name: {type: string, value: AK Parti}, party_3_perc: {type: string, value: 17.07}, party_5_perc: {type: string, value: 16.04}, party1/party_perc: {type: string, value: 17.22}, party2/party_name: {type: string, value: YRP}, party2/party_perc: {type: string, value: 17.10}, party3/party_perc: {type: string, value: 17.07}, party5/party_perc: {type: string, value: 16.04}, party3/party_name: {type: string, value: AK Parti}}
+[11:48:54.440]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
+[11:48:54.440] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:54.441] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
+[11:48:54.441] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:54.441] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:54.442]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:54.442]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_2_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party1/party_perc\":{\"type\":\"string\",\"value\":\"17.22\"},\"party2/party_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"}}}"
+[11:48:54.442]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:54.442]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
+[11:48:54.442]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
+[11:48:54.442]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
+[11:48:54.475] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:54.475] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:55.178] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:55.184]  Trigger pressed: TAKE
+[11:48:55.184] rawBindings --> {party_1_perc: {type: string, value: 17.10}, party_2_name: {type: string, value: YRP}, party_2_perc: {type: string, value: 17.10}, party_3_name: {type: string, value: AK Parti}, party_3_perc: {type: string, value: 17.07}, party_5_perc: {type: string, value: 16.04}, party1/party_perc: {type: string, value: 17.22}, party2/party_name: {type: string, value: YRP}, party2/party_perc: {type: string, value: 17.10}, party3/party_perc: {type: string, value: 17.07}, party5/party_perc: {type: string, value: 16.04}, party3/party_name: {type: string, value: AK Parti}, TAKE OUT: false}
+[11:48:55.185]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}},"currentInputs":{},"triggerName":"TAKE","source":"api_trigger"}
+[11:48:55.185] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:55.185] [embedded]  Triggered 'TAKE' via ViewModel handle
+[11:48:55.186] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:55.186] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:55.186]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:55.186]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_2_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party1/party_perc\":{\"type\":\"string\",\"value\":\"17.22\"},\"party2/party_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"TAKE OUT\":false}}"
+[11:48:55.186]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:55.187]  INVOKE RIVE TRIGGER → Layer 1225: TAKE on 1 engine(s)
+[11:48:55.187]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE"
+[11:48:55.187]  Sent "CG 1-1225 INVOKE 0 "TAKE"" to 0/1 engines
+[11:48:55.222] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:55.223] [CONTROLLER]  Triggered 'TAKE' via ViewModel handle
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:55.875] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:55.878]  Trigger pressed: TAKE OUT
+[11:48:55.878] rawBindings --> {party_1_perc: {type: string, value: 17.10}, party_2_name: {type: string, value: YRP}, party_2_perc: {type: string, value: 17.10}, party_3_name: {type: string, value: AK Parti}, party_3_perc: {type: string, value: 17.07}, party_5_perc: {type: string, value: 16.04}, party1/party_perc: {type: string, value: 17.22}, party2/party_name: {type: string, value: YRP}, party2/party_perc: {type: string, value: 17.10}, party3/party_perc: {type: string, value: 17.07}, party5/party_perc: {type: string, value: 16.04}, party3/party_name: {type: string, value: AK Parti}, TAKE OUT: false, TAKE: false}
+[11:48:55.881]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_perc":{"type":"string","value":"17.10"},"party_2_name":{"type":"string","value":"YRP"},"party_2_perc":{"type":"string","value":"17.10"},"party_3_name":{"type":"string","value":"AK Parti"},"party_3_perc":{"type":"string","value":"17.07"},"party_5_perc":{"type":"string","value":"16.04"},"party1/party_perc":{"type":"string","value":"17.22"},"party2/party_name":{"type":"string","value":"YRP"},"party2/party_perc":{"type":"string","value":"17.10"},"party3/party_perc":{"type":"string","value":"17.07"},"party5/party_perc":{"type":"string","value":"16.04"},"party3/party_name":{"type":"string","value":"AK Parti"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
+[11:48:55.881] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:55.882] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
+[11:48:55.882] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:55.882] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:55.882]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:55.884]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_2_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party1/party_perc\":{\"type\":\"string\",\"value\":\"17.22\"},\"party2/party_name\":{\"type\":\"string\",\"value\":\"YRP\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.10\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.07\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.04\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"TAKE OUT\":false,\"TAKE\":false}}"
+[11:48:55.884]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:55.884]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
+[11:48:55.884]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
+[11:48:55.884]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
+[11:48:55.940] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:55.940] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:56.617] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=data, data={"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}})
+[11:48:56.620]  Updating preview "rive_editor_preview" with bindings
+[11:48:56.620]  Preview update complete
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:56.709] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:56.714]  Trigger pressed: TAKE
+[11:48:56.714] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}}
+[11:48:56.715]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE","source":"api_trigger"}
+[11:48:56.716] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:56.716] [embedded]  Triggered 'TAKE' via ViewModel handle
+[11:48:56.717] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:56.717] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:56.718]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:56.718]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"}}}"
+[11:48:56.718]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:56.718]  INVOKE RIVE TRIGGER → Layer 1225: TAKE on 1 engine(s)
+[11:48:56.718]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE"
+[11:48:56.718]  Sent "CG 1-1225 INVOKE 0 "TAKE"" to 0/1 engines
+[11:48:56.800] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:56.801] [CONTROLLER]  Triggered 'TAKE' via ViewModel handle
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:57.350] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:57.352]  Trigger pressed: TAKE OUT
+[11:48:57.352] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}, TAKE: false}
+[11:48:57.354]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
+[11:48:57.354] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:57.355] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
+[11:48:57.355] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:57.355] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:57.355]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:57.356]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"TAKE\":false}}"
+[11:48:57.356]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:57.356]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
+[11:48:57.356]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
+[11:48:57.356]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
+[11:48:57.403] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:57.403] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:58.235] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:58.238]  Trigger pressed: TAKE
+[11:48:58.238] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}, TAKE: false, TAKE OUT: false}
+[11:48:58.240]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE","source":"api_trigger"}
+[11:48:58.240] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:58.240] [embedded]  Triggered 'TAKE' via ViewModel handle
+[11:48:58.241] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:58.241] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:58.241]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:58.241]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"TAKE\":false,\"TAKE OUT\":false}}"
+[11:48:58.242]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:58.242]  INVOKE RIVE TRIGGER → Layer 1225: TAKE on 1 engine(s)
+[11:48:58.242]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE"
+[11:48:58.242]  Sent "CG 1-1225 INVOKE 0 "TAKE"" to 0/1 engines
+[11:48:58.271] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:58.271] [CONTROLLER]  Triggered 'TAKE' via ViewModel handle
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[11:48:58.804] [PlaylistEventBus] ItemUpdated(playlist=49, item=2254, change=trigger)
+[11:48:58.808]  Trigger pressed: TAKE OUT
+[11:48:58.808] rawBindings --> {party_1_name: {type: string, value: AK Parti}, party_1_perc: {type: string, value: 17.19}, party_2_perc: {type: string, value: 17.19}, party_3_name: {type: string, value: YSP}, party_3_perc: {type: string, value: 17.15}, party_4_perc: {type: string, value: 16.68}, party_5_perc: {type: string, value: 16.25}, party1/party_name: {type: string, value: AK Parti}, party2/party_perc: {type: string, value: 17.19}, party3/party_perc: {type: string, value: 17.15}, party4/party_perc: {type: string, value: 16.68}, party5/party_perc: {type: string, value: 16.25}, party3/party_name: {type: string, value: YSP}, TAKE: false, TAKE OUT: false}
+[11:48:58.809]  [Manager] Dispatching localPayload: {"templateId":225,"itemId":2254,"isFullScreen":false,"category":"Imported","currentBindings":{"party_1_name":{"type":"string","value":"AK Parti"},"party_1_perc":{"type":"string","value":"17.19"},"party_2_perc":{"type":"string","value":"17.19"},"party_3_name":{"type":"string","value":"YSP"},"party_3_perc":{"type":"string","value":"17.15"},"party_4_perc":{"type":"string","value":"16.68"},"party_5_perc":{"type":"string","value":"16.25"},"party1/party_name":{"type":"string","value":"AK Parti"},"party2/party_perc":{"type":"string","value":"17.19"},"party3/party_perc":{"type":"string","value":"17.15"},"party4/party_perc":{"type":"string","value":"16.68"},"party5/party_perc":{"type":"string","value":"16.25"},"party3/party_name":{"type":"string","value":"YSP"}},"currentInputs":{},"triggerName":"TAKE OUT","source":"api_trigger"}
+[11:48:58.810] [embedded]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:58.810] [embedded]  Triggered 'TAKE OUT' via ViewModel handle
+[11:48:58.812] [CONTROLLER] [-1]  Sent "input_databinding_update" via 0 socket(s) (Role: OVERLAY)
+[11:48:58.812] [CONTROLLER]  Remote Sync: 1 server(s)
+[11:48:58.815] [CONTROLLER]  handleDataUpdate: itemId=2254, templateId=225, isUpdate=true, isSceneLoad=false
+[11:48:58.815] [CONTROLLER]  Triggered 'TAKE OUT' via ViewModel handle
+[11:48:58.817]  Engine 2 not connected, cannot send: PLAY 1-1225 [RIVE] "6a644083_1787315622189_Election_component"
+[11:48:58.817]  Engine 2 not connected, cannot send: CG 1-1225 ADD 0 "6a644083_1787315622189_Election_component" 0 "{\"bindings\":{\"party_1_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party_1_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_2_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party_3_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"party_3_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party_4_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party_5_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party1/party_name\":{\"type\":\"string\",\"value\":\"AK Parti\"},\"party2/party_perc\":{\"type\":\"string\",\"value\":\"17.19\"},\"party3/party_perc\":{\"type\":\"string\",\"value\":\"17.15\"},\"party4/party_perc\":{\"type\":\"string\",\"value\":\"16.68\"},\"party5/party_perc\":{\"type\":\"string\",\"value\":\"16.25\"},\"party3/party_name\":{\"type\":\"string\",\"value\":\"YSP\"},\"TAKE\":false,\"TAKE OUT\":false}}"
+[11:48:58.817]  PRELOAD RIVE (NEW) failed to confirm → Engine 2 Layer 1225: 6a644083_1787315622189_Election_component
+[11:48:58.817]  INVOKE RIVE TRIGGER → Layer 1225: TAKE OUT on 1 engine(s)
+[11:48:58.817]  Engine 2 not connected, cannot send: CG 1-1225 INVOKE 0 "TAKE OUT"
+[11:48:58.817]  Sent "CG 1-1225 INVOKE 0 "TAKE OUT"" to 0/1 engines
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[AirPlayStudio/Win] setLiveKitMuted: true
+[NativeAudioCapture] 🔇 LiveKit audio MUTED
+[NativeAudioCapture] 📊 2160.0s captured, 103680000 frames total (mic+loopback)
+[NativeAudioCapture] [MIX-SRC] mic=8459/8460 loop=8459/8460 video=0/8460 dl=0/8460 lk=0/8460 silent=0/8460

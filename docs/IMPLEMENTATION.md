@@ -20,11 +20,12 @@ broadcast graphics.
 10. [Firing on-air triggers](#10-firing-on-air-triggers)
 11. [Live sync over SSE](#11-live-sync-over-sse)
 12. [Connecting a real data source (the "pull" side)](#12-connecting-a-real-data-source-the-pull-side)
-13. [Worked example: Election Desk](#13-worked-example-election-desk)
-14. [SDK API reference](#14-sdk-api-reference)
-15. [Error handling](#15-error-handling)
-16. [Deployment & hosting](#16-deployment--hosting)
-17. [Troubleshooting](#17-troubleshooting)
+13. [Configuration with @airz/config-ui](#13-configuration-with-airzconfig-ui)
+14. [Worked example: Election Desk](#14-worked-example-election-desk)
+15. [SDK API reference](#15-sdk-api-reference)
+16. [Error handling](#16-error-handling)
+17. [Deployment & hosting](#17-deployment--hosting)
+18. [Troubleshooting](#18-troubleshooting)
 
 ---
 
@@ -331,7 +332,32 @@ live feed → on-air pipeline.
 
 ---
 
-## 13. Worked example: Election Desk
+## 13. Configuration with `@airz/config-ui`
+
+Rather than hardcoding template IDs and binding maps, you should use the standard `@airz/config-ui` package to provide operators with a "Configure" modal. This lets them visually map your local data paths to the Rive template bindings without writing code.
+
+```ts
+import { AirzConfigurator } from "@airz/config-ui";
+
+<AirzConfigurator
+  open={showConfig}
+  onClose={() => setShowConfig(false)}
+  config={config}
+  onChange={saveConfig}
+  sourcePaths={["headline", "nationalData.candidateVotes.erdogan"]}
+  client={client}
+  onClient={setClient}
+/>
+```
+
+> [!WARNING]
+> The `sourcePaths` prop is strictly an **array of strings**. It is used to power the autocomplete dropdown in the mapper. **Do not** pass objects (e.g. `{ label, value }`). Passing objects will crash the React render cycle when the Configurator attempts to call `.toLowerCase()` during string filtering, which can cause the entire page to blank out or reload!
+
+The `AirzConfigurator` produces a `MappingConfig` which you can then pass to the `PanelBinder` (from `@airz/rundown-sdk`) to completely automate the data push logic.
+
+---
+
+## 14. Worked example: Election Desk
 
 The `examples/election-desk` React app implements the full flow: login → pick
 rundown/item → type vote counts (pushed via `BindingSync`) → fire an on-air

@@ -13,6 +13,7 @@ export {
   pick,
   passthroughImages,
   uploadingImages,
+  linkingImages,
   type PanelSpec,
   type PanelTarget,
   type PanelBinderOptions,

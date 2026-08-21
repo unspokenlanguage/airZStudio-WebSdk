@@ -72,6 +72,54 @@ export function uploadingImages(
   };
 }
 
+/**
+ * Smart resolver that attempts to find the image ALREADY uploaded on the controller
+ * in a specific folder by matching the filename. If found, it links to its `localPath`
+ * instantly without redundant network uploads. If not found, it gracefully falls back
+ * to uploading it.
+ */
+export function linkingImages(
+  client: AirzClient,
+  opts: { folder: string }
+): ImageResolver {
+  const cache = new Map<string, Promise<string>>();
+  
+  // Cache of assets already on the controller in this folder
+  let existingAssetsPromise: Promise<any[]> | null = null;
+  
+  return {
+    resolve(ref: ImageRef): Promise<string> {
+      let p = cache.get(ref.src);
+      if (!p) {
+        p = (async () => {
+          const name = ref.name ?? fileNameFromUrl(ref.src);
+          
+          // 1. Fetch controller assets once
+          if (!existingAssetsPromise) {
+            existingAssetsPromise = client.assets.list({ folder: opts.folder, type: 'image' }).catch(() => []);
+          }
+          const existingAssets = await existingAssetsPromise;
+          
+          // 2. See if the asset already exists on the controller
+          const match = existingAssets.find(a => a.name === name);
+          if (match && match.localPath) {
+            return match.localPath;
+          }
+          
+          // 3. Fallback: Upload it if it's not there
+          const res = await fetch(ref.src);
+          if (!res.ok) throw new Error(`image fetch failed: ${ref.src}`);
+          const blob = await res.blob();
+          const asset = await client.assets.upload(name, blob, opts.folder);
+          return asset.localPath;
+        })();
+        cache.set(ref.src, p);
+      }
+      return p;
+    },
+  };
+}
+
 function fileNameFromUrl(url: string): string {
   try {
     const p = new URL(url, "http://x").pathname;
