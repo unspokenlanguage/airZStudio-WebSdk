@@ -52,11 +52,22 @@ export class BindingSync {
   private pending: BindingData = {};
   private timer: ReturnType<typeof setTimeout> | null = null;
   private inFlight: Promise<void> | null = null;
+  /** Mutable so a PanelBinder can retarget live↔staged per push (the panel's air
+   * policy combined with the on-air state decides where each write goes). */
+  private mode: "live" | "staged" | undefined;
 
   constructor(
     private readonly patch: Patcher,
     private readonly opts: BindingSyncOptions,
-  ) {}
+  ) {
+    this.mode = opts.mode;
+  }
+
+  /** Retarget subsequent flushes to live or staged. */
+  setMode(mode: "live" | "staged" | undefined): this {
+    this.mode = mode;
+    return this;
+  }
 
   /** Seed the baseline (e.g. from the item's current `data`) so the first
    * diff is computed against reality, not an empty map. Does not send. */
@@ -99,7 +110,7 @@ export class BindingSync {
 
     this.inFlight = (async () => {
       try {
-        await this.patch(this.opts.rundownId, this.opts.itemId, changed, { mode: this.opts.mode });
+        await this.patch(this.opts.rundownId, this.opts.itemId, changed, { mode: this.mode });
         Object.assign(this.lastSent, changed);
         this.opts.onFlush?.(changed);
       } catch (err) {

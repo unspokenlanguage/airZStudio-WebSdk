@@ -3,14 +3,16 @@ import type { NationalData } from "../utils/simulator.js";
 
 interface Props {
   data: NationalData;
+  /** Render without the card chrome, as a section inside a shared panel. */
+  flat?: boolean;
 }
 
-export function PresidencyTicker({ data }: Props) {
+export function PresidencyTicker({ data, flat }: Props) {
   // Use overall total votes across candidates to calculate percentages
   const totalVotes = data ? Object.values(data.candidateVotes).reduce((a, b) => a + b, 0) : 0;
 
   return (
-    <div style={S.container}>
+    <div style={flat ? S.flat : S.container}>
       <div style={S.header}>
         <h2 style={S.title}>BAŞKANLIK</h2>
         <span style={S.subtitle}>TÜRKİYE GENELİ</span>
@@ -58,6 +60,7 @@ const S: Record<string, React.CSSProperties> = {
     gap: 20,
     boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
   },
+  flat: { display: "flex", flexDirection: "column", gap: 20 },
   header: {
     borderBottom: "1px solid rgba(255,255,255,0.1)",
     paddingBottom: 16,

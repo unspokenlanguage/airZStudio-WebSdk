@@ -1,1 +1,5 @@
-export { AirzConfigurator, type AirzConfiguratorProps } from "./AirzConfigurator.js";
+export {
+  AirzConfigurator,
+  type AirzConfiguratorProps,
+  type PanelCatalogEntry,
+} from "./AirzConfigurator.js";

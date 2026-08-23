@@ -15,10 +15,12 @@ import type { BindingType } from "./types.js";
 /** How to format a mapped value before pushing. */
 export type FormatKind =
   | "none"
-  | "int"      // Number(v)
-  | "trInt"    // Number(v).toLocaleString("tr-TR")  → 1.292.189
-  | "pct1"     // "%" + v.toFixed(1)
-  | "pct2"     // "%" + v.toFixed(2)
+  | "int"      // Math.round(v)                       → 49   (rounded, bare)
+  | "dec1"     // v.toFixed(1)                         → 49.5 (bare, 1 decimal)
+  | "dec2"     // v.toFixed(2)                         → 49.48 (bare, 2 decimals)
+  | "trInt"    // Number(v).toLocaleString("tr-TR")    → 1.292.189
+  | "pct1"     // "%" + v.toFixed(1)                   → %49.5
+  | "pct2"     // "%" + v.toFixed(2)                   → %49.48
   | "upper";
 
 /** One binding mapping: bind `to` from a source path, a constant, or an image. */
@@ -62,6 +64,11 @@ export interface PanelConfig {
   selectBy?: SelectStep[];
   fields: FieldConfig[];
   debounceMs?: number;
+  /** Air policy — "cue" (default: prepare on selection, commit on take) or
+   * "live" (stream to program once taken on air, e.g. a results ticker). */
+  air?: "cue" | "live";
+  /** Binding keys that stream live even inside a cue panel (per-field override). */
+  liveFields?: string[];
 }
 
 /** Build a slice resolver from selectBy steps + the current selector values. */
@@ -104,6 +111,10 @@ function formatValue(value: unknown, kind: FormatKind | undefined): unknown {
   switch (kind) {
     case "int":
       return Number.isFinite(n) ? Math.round(n) : value;
+    case "dec1":
+      return Number.isFinite(n) ? n.toFixed(1) : value;
+    case "dec2":
+      return Number.isFinite(n) ? n.toFixed(2) : value;
     case "trInt":
       return Number.isFinite(n) ? n.toLocaleString("tr-TR") : value;
     case "pct1":
@@ -172,6 +183,8 @@ export function configToPanelSpec(
   };
   if (select) spec.select = select;
   if (pc.debounceMs !== undefined) spec.debounceMs = pc.debounceMs;
+  if (pc.air) spec.air = pc.air;
+  if (pc.liveFields && pc.liveFields.length) spec.liveFields = pc.liveFields;
   return spec;
 }
 
@@ -580,12 +593,22 @@ export function discoverAndWatchRemoteConfig(
       void scan();
     }, 250);
   };
-  const offs = [
-    stream.on("item.updated", schedule),
-    stream.on("item.created", schedule),
-    stream.on("rundown.changed", schedule),
-    stream.on("webconfig.updated", schedule), // endpoint-mode live-sync
+  const offs: Array<() => void> = [
+    // Endpoint-mode live-sync: fires only when a web-config is actually written.
+    stream.on("webconfig.updated", schedule),
   ];
+  // Watch item/rundown churn ONLY in item-stash (no-endpoint) mode. In endpoint
+  // mode this would re-scan on every live data push (item.updated) — spamming
+  // GET /web-configs/<key> 404s (and full rundown/item listings) for an app whose
+  // config lives locally / in the URL. Availability is probed async + cached.
+  void client.webConfigs.available().then((hasEndpoint) => {
+    if (disposed || hasEndpoint) return;
+    offs.push(
+      stream.on("item.updated", schedule),
+      stream.on("item.created", schedule),
+      stream.on("rundown.changed", schedule),
+    );
+  });
   void scan();
 
   return () => {

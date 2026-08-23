@@ -181,13 +181,38 @@ export interface PanelSpec<Source = any, Slice = any> {
   repeats?: Repeat<Slice>[];
   /** Debounce for this panel's writes (ms). */
   debounceMs?: number;
-  /** Whether updates go to live or staged. Override binder options. */
+  /**
+   * Air policy for this panel:
+   *  • "cue"  (default) — selection PREPARES data (preview only); the data reaches
+   *    program only when you `take()` it (flush full data + fire the trigger).
+   *    Use for full-screen graphics you cue then take.
+   *  • "live" — once the panel has been taken on air, data STREAMS to program on
+   *    every update (e.g. a results ticker whose numbers climb on air). Until its
+   *    first trigger it stays in preview.
+   * Combined with the binder's on-air state ([setOnAir]) to pick each write's
+   * destination.
+   */
+  air?: "cue" | "live";
+  /**
+   * Explicit data mode override. When set, forces every write to live/staged and
+   * bypasses the air×on-air derivation. Advanced/back-compat use.
+   */
   mode?: "live" | "staged";
+  /**
+   * Binding keys that stream LIVE even inside a `cue` panel — e.g. a `turnout%`
+   * that ticks on air while the rest of the panel waits for the take. Ignored on
+   * a `live` panel (everything already streams).
+   */
+  liveFields?: string[];
 }
 
 interface Panel {
   spec: PanelSpec;
   sync: BindingSync;
+  /** Second sync carrying only the `liveFields` subset (created lazily). */
+  liveSync?: BindingSync;
+  air: "cue" | "live";
+  liveFields: Set<string>;
 }
 
 // ── Binder ──────────────────────────────────────────────────────────────────
@@ -208,6 +233,9 @@ export class PanelBinder<Source = any> {
   private readonly panels = new Map<string, Panel>();
   private readonly images: ImageResolver;
   private readonly mode?: "live" | "staged";
+  /** Operator on-air state (the Rehearse ↔ On-Air toggle). While false, every
+   * write and trigger stays on the preview. */
+  private _onAir = false;
 
   constructor(
     private readonly client: AirzClient,
@@ -217,22 +245,56 @@ export class PanelBinder<Source = any> {
     this.mode = opts.mode;
   }
 
+  /** Reflect the Rehearse ↔ On-Air toggle. Off = everything previews. */
+  setOnAir(onAir: boolean): this {
+    this._onAir = onAir;
+    return this;
+  }
+
+  get onAir(): boolean {
+    return this._onAir;
+  }
+
   /** Register (or replace) a panel and its target item. */
   add<Slice>(spec: PanelSpec<Source, Slice>): this {
-    this.panels.get(spec.name)?.sync.flush().catch(() => {});
-    const sync = this.client.items.bindingSync({
-      rundownId: spec.target.rundownId,
-      itemId: spec.target.itemId,
-      ...(spec.debounceMs !== undefined ? { debounceMs: spec.debounceMs } : {}),
-      ...(spec.mode || this.mode ? { mode: spec.mode || this.mode } : {}),
+    const prev = this.panels.get(spec.name);
+    prev?.sync.flush().catch(() => {});
+    prev?.liveSync?.flush().catch(() => {});
+    const mk = () =>
+      this.client.items.bindingSync({
+        rundownId: spec.target.rundownId,
+        itemId: spec.target.itemId,
+        ...(spec.debounceMs !== undefined ? { debounceMs: spec.debounceMs } : {}),
+      });
+    const liveFields = new Set(spec.liveFields ?? []);
+    const sync = mk();
+    // A cue panel with live-flagged fields needs a second sync so those keys can
+    // stream (mode live) while the rest stay cued (mode staged) — one sync can't
+    // carry two modes at once.
+    const liveSync = liveFields.size > 0 ? mk() : undefined;
+    this.panels.set(spec.name, {
+      spec,
+      sync,
+      liveSync,
+      air: spec.air ?? "cue",
+      liveFields,
     });
-    this.panels.set(spec.name, { spec, sync });
     return this;
+  }
+
+  /** The data destination for a panel right now: explicit override wins, else a
+   * live panel that's on air streams to program, everything else prepares
+   * (preview / staged). */
+  private modeFor(panel: Panel): "live" | "staged" {
+    if (panel.spec.mode) return panel.spec.mode;
+    return this._onAir && panel.air === "live" ? "live" : "staged";
   }
 
   /** Seed a panel's diff baseline from the item's current on-air values. */
   prime(name: string, current: BindingData): this {
-    this.panels.get(name)?.sync.prime(current);
+    const panel = this.panels.get(name);
+    panel?.sync.prime(current);
+    panel?.liveSync?.prime(current);
     return this;
   }
 
@@ -273,7 +335,64 @@ export class PanelBinder<Source = any> {
     }
 
     const resolved = await this.resolveImages(raw);
-    panel.sync.set(resolved);
+
+    // A cue panel with live-flagged fields: split the write — flagged keys stream
+    // (live once on air / preview while rehearsing), the rest follow the panel
+    // policy. A live panel (or no live fields) pushes everything through `sync`.
+    if (panel.liveSync && panel.liveFields.size > 0 && panel.air !== "live") {
+      const liveData: BindingData = {};
+      const cuedData: BindingData = {};
+      for (const [k, v] of Object.entries(resolved)) {
+        if (panel.liveFields.has(k)) liveData[k] = v;
+        else cuedData[k] = v;
+      }
+      panel.sync.setMode(this.modeFor(panel));
+      panel.liveSync.setMode(this._onAir ? "live" : "staged");
+      panel.sync.set(cuedData);
+      panel.liveSync.set(liveData);
+    } else {
+      panel.sync.setMode(this.modeFor(panel));
+      panel.sync.set(resolved);
+    }
+  }
+
+  /**
+   * Take a CUE panel to air: flush its full prepared data and fire [triggerName]
+   * so the graphic animates in carrying the latest values. While rehearsing
+   * (not on air) this fires on the preview only. For a `live` panel — whose data
+   * already streams — this just fires the trigger.
+   */
+  async take(name: string, triggerName: string): Promise<void> {
+    const panel = this.panels.get(name);
+    if (!panel) return;
+    // Make sure the prepared data is on the server before the flush/trigger reads it.
+    await panel.sync.flush();
+    await panel.liveSync?.flush();
+    const { rundownId, itemId } = panel.spec.target;
+    if (!this._onAir) {
+      await this.client.items.trigger(rundownId, itemId, triggerName, { mode: "staged" });
+    } else if (panel.air === "cue") {
+      await this.client.items.trigger(rundownId, itemId, triggerName, { flushStaged: true });
+    } else {
+      await this.client.items.trigger(rundownId, itemId, triggerName);
+    }
+  }
+
+  /**
+   * Fire a trigger without flushing — for live panels (e.g. a ticker advancing
+   * its loop) or any generic trigger. On air it fires on program; while
+   * rehearsing it fires on the preview.
+   */
+  async fire(name: string, triggerName: string): Promise<void> {
+    const panel = this.panels.get(name);
+    if (!panel) return;
+    const { rundownId, itemId } = panel.spec.target;
+    await this.client.items.trigger(
+      rundownId,
+      itemId,
+      triggerName,
+      this._onAir ? {} : { mode: "staged" },
+    );
   }
 
   /** Replace ImageRefs with resolved paths; drop undefined image values. */

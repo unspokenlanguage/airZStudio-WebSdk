@@ -191,10 +191,14 @@ class ItemsApi {
   ): Promise<RundownItem> {
     return this.http.request(
       `/rundowns/${rundownId}/items/${itemId}/data`,
-      { 
-        method: "PATCH", 
+      {
+        method: "PATCH",
         body: { data },
-        query: options?.mode ? { mode: options.mode } : undefined,
+        // Only "staged" carries a query flag — the controller treats an absent
+        // mode as a live, role-based write (preview + program/engine for on-air
+        // items). Sending `?mode=live` would work too, but no-mode is the
+        // canonical live path.
+        query: options?.mode === "staged" ? { mode: "staged" } : undefined,
       },
     );
   }
@@ -218,14 +222,22 @@ class ItemsApi {
     rundownId: number,
     itemId: number,
     triggerName: string,
-    options?: { flushStaged?: boolean },
+    options?: { mode?: "live" | "staged"; flushStaged?: boolean },
   ): Promise<void> {
+    // A STAGED trigger fires on the controller's preview only (like pressing the
+    // native item-editor trigger button in staged) — it must NOT reach program,
+    // so it carries `?mode=staged` and never flushes. A live trigger (default)
+    // carries no mode and reaches program. `flushStaged` is an explicit opt-in to
+    // promote staged data to air on fire; it's independent of preview/live.
+    const query: Record<string, string> = {};
+    if (options?.mode === "staged") query.mode = "staged";
+    if (options?.flushStaged) query.flush_staged = "true";
     await this.http.request(
       `/rundowns/${rundownId}/items/${itemId}/trigger`,
-      { 
-        method: "POST", 
+      {
+        method: "POST",
         body: { trigger: triggerName },
-        query: options?.flushStaged ? { flush_staged: "true" } : undefined,
+        query: Object.keys(query).length ? query : undefined,
       },
     );
   }
@@ -273,14 +285,14 @@ class ItemsApi {
   }
 
   bindingSync(opts: BindingSyncOptions): BindingSync {
+    // Live vs staged is decided entirely by the PATCH mode: a live write reaches
+    // program/engine (for on-air items), a staged write updates only the
+    // controller preview. There is no implicit push-to-air here — the app calls
+    // `pushStaged()` (or a `flush_staged` trigger) explicitly to promote staged
+    // data to air.
     return new BindingSync(
-      async (rundownId, itemId, data, options) => {
-        const res = await this.setData(rundownId, itemId, data, options);
-        if (!options?.mode || options.mode === "live") {
-          await this.pushStaged(rundownId, itemId).catch(() => {});
-        }
-        return res;
-      },
+      (rundownId, itemId, data, options) =>
+        this.setData(rundownId, itemId, data, options),
       opts,
     );
   }

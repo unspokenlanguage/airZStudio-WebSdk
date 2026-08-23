@@ -17,6 +17,25 @@ import {
   type RundownItem,
 } from "@airz/rundown-sdk";
 
+/**
+ * An app-defined panel the operator can pick from (instead of typing a generic
+ * one). Carries the panel's identity + air policy + any preset field mapping, so
+ * choosing "Presidential Ticker" or "City Results" only leaves a rundown item to
+ * bind.
+ */
+export interface PanelCatalogEntry {
+  panelId: string;
+  label: string;
+  air?: "cue" | "live";
+  select?: string;
+  liveFields?: string[];
+  fields?: FieldConfig[];
+  /** Source paths bindable for THIS panel (its own HTML/data properties). When
+   * set, the field-mapping autocomplete is scoped to these instead of the global
+   * `sourcePaths` — so a city panel won't offer candidate paths, etc. */
+  sourcePaths?: string[];
+}
+
 export interface AirzConfiguratorProps {
   open: boolean;
   onClose: () => void;
@@ -24,12 +43,27 @@ export interface AirzConfiguratorProps {
   onChange: (config: MappingConfig) => void;
   /** Known source field paths offered as autocomplete when mapping. */
   sourcePaths?: string[];
+  /**
+   * App catalog of available panels. When provided, "Add panel" offers these to
+   * pick (prepopulated with id/label/air/fields) instead of creating a blank one.
+   */
+  panelCatalog?: PanelCatalogEntry[];
   /** Reuse an authenticated client; otherwise the overlay logs in itself. */
   client?: AirzClient | null;
   onClient?: (client: AirzClient) => void;
 }
 
-const FORMATS: FormatKind[] = ["none", "int", "trInt", "pct1", "pct2", "upper"];
+const FORMATS: FormatKind[] = ["none", "int", "dec1", "dec2", "trInt", "pct1", "pct2", "upper"];
+const FORMAT_LABEL: Record<FormatKind, string> = {
+  none: "none (as-is)",
+  int: "int → 49",
+  dec1: "dec1 → 49.5",
+  dec2: "dec2 → 49.48",
+  trInt: "trInt → 1.292.189",
+  pct1: "pct1 → %49.5",
+  pct2: "pct2 → %49.48",
+  upper: "upper → ABC",
+};
 
 export function AirzConfigurator(props: AirzConfiguratorProps) {
   const { open, onClose, config, onChange } = props;
@@ -56,6 +90,56 @@ export function AirzConfigurator(props: AirzConfiguratorProps) {
       ],
     });
     setActivePanel(id);
+  };
+
+  const catalog = props.panelCatalog ?? [];
+  const availableCatalog = catalog.filter(
+    (c) => !config.panels.some((p) => p.panelId === c.panelId),
+  );
+  // Re-key an existing panel slot to a different catalog panel, keeping the bound
+  // rundown/item but adopting the new panel's label/air/fields.
+  const pickPanelIdentity = (oldId: string, newId: string) => {
+    if (oldId === newId) return;
+    const entry = catalog.find((c) => c.panelId === newId);
+    if (!entry) return;
+    patch({
+      panels: config.panels.map((p) =>
+        p.panelId === oldId
+          ? {
+              panelId: entry.panelId,
+              label: entry.label,
+              rundownId: p.rundownId,
+              itemId: p.itemId,
+              ...(entry.air ? { air: entry.air } : {}),
+              ...(entry.select ? { select: entry.select } : {}),
+              ...(entry.liveFields ? { liveFields: entry.liveFields } : {}),
+              fields: entry.fields ?? [],
+            }
+          : p,
+      ),
+    });
+    setActivePanel(newId);
+  };
+
+  const addFromCatalog = (panelId: string) => {
+    const entry = catalog.find((c) => c.panelId === panelId);
+    if (!entry) return;
+    patch({
+      panels: [
+        ...config.panels,
+        {
+          panelId: entry.panelId,
+          label: entry.label,
+          rundownId: 0,
+          itemId: 0,
+          ...(entry.air ? { air: entry.air } : {}),
+          ...(entry.select ? { select: entry.select } : {}),
+          ...(entry.liveFields ? { liveFields: entry.liveFields } : {}),
+          fields: entry.fields ?? [],
+        },
+      ],
+    });
+    setActivePanel(entry.panelId);
   };
   const removePanel = (panelId: string) => {
     patch({ panels: config.panels.filter((p) => p.panelId !== panelId) });
@@ -109,9 +193,30 @@ export function AirzConfigurator(props: AirzConfiguratorProps) {
                 </button>
               </div>
             ))}
-            <button style={S.addBtn} onClick={addPanel}>
-              + Add panel
-            </button>
+            {catalog.length > 0 ? (
+              availableCatalog.length > 0 ? (
+                <select
+                  style={{ ...S.input, marginTop: 8 }}
+                  value=""
+                  onChange={(e) => e.target.value && addFromCatalog(e.target.value)}
+                  title="Pick an available panel to bind to a rundown item"
+                >
+                  <option value="">+ Add panel…</option>
+                  {availableCatalog.map((c) => (
+                    <option key={c.panelId} value={c.panelId}>
+                      {c.label}
+                      {c.air === "live" ? "  · live" : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ ...S.muted, marginTop: 8 }}>All panels added.</div>
+              )
+            ) : (
+              <button style={S.addBtn} onClick={addPanel}>
+                + Add panel
+              </button>
+            )}
           </aside>
 
           <main style={S.main}>
@@ -119,7 +224,14 @@ export function AirzConfigurator(props: AirzConfiguratorProps) {
               <PanelEditor
                 client={client}
                 panel={panel}
-                sourcePaths={props.sourcePaths ?? []}
+                sourcePaths={
+                  catalog.find((c) => c.panelId === panel.panelId)?.sourcePaths ??
+                  props.sourcePaths ??
+                  []
+                }
+                catalog={catalog}
+                usedIds={config.panels.map((p) => p.panelId)}
+                onPickPanel={(newId) => pickPanelIdentity(panel.panelId, newId)}
                 onChange={(next) => patchPanel(panel.panelId, next)}
               />
             ) : (
@@ -193,8 +305,17 @@ function PanelEditor(props: {
   panel: PanelConfig;
   sourcePaths: string[];
   onChange: (next: Partial<PanelConfig>) => void;
+  /** App catalog of available panels + ids already used, so Panel id is a
+   * dropdown that re-keys this slot to another catalog panel (keeping its item). */
+  catalog?: PanelCatalogEntry[];
+  usedIds?: string[];
+  onPickPanel?: (newId: string) => void;
 }) {
   const { client, panel } = props;
+  const catalog = props.catalog ?? [];
+  const usedIds = new Set(props.usedIds ?? []);
+  // Options: this panel's own id + any catalog panel not already added elsewhere.
+  const panelOptions = catalog.filter((c) => c.panelId === panel.panelId || !usedIds.has(c.panelId));
   const [rundowns, setRundowns] = useState<Rundown[]>([]);
   const [items, setItems] = useState<RundownItem[]>([]);
   const [bindings, setBindings] = useState<BindingInfo[]>([]);
@@ -237,12 +358,35 @@ function PanelEditor(props: {
     props.onChange({ fields: [...others, { ...current, ...next, to: key }] });
   };
 
+  const liveSet = useMemo(() => new Set(panel.liveFields ?? []), [panel.liveFields]);
+  const toggleLive = (key: string, on: boolean) => {
+    const next = new Set(liveSet);
+    if (on) next.add(key);
+    else next.delete(key);
+    props.onChange({ liveFields: [...next] });
+  };
+
   return (
     <div>
       <div style={S.row}>
         <div style={{ flex: 1 }}>
           <label style={S.lbl}>Panel id</label>
-          <input style={S.input} value={panel.panelId} readOnly />
+          {catalog.length > 0 && props.onPickPanel ? (
+            <select
+              style={S.input}
+              value={panel.panelId}
+              onChange={(e) => props.onPickPanel?.(e.target.value)}
+              title="Which app panel this slot is — switching re-applies its fields, keeping the bound item"
+            >
+              {panelOptions.map((c) => (
+                <option key={c.panelId} value={c.panelId}>
+                  {c.label} ({c.panelId})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input style={S.input} value={panel.panelId} readOnly />
+          )}
         </div>
         <div style={{ flex: 2 }}>
           <label style={S.lbl}>Label</label>
@@ -291,8 +435,26 @@ function PanelEditor(props: {
         </div>
       </div>
 
+      <div style={{ ...S.row, marginTop: 12 }}>
+        <div style={{ flex: 1 }}>
+          <label style={S.lbl}>Air policy</label>
+          <select
+            style={S.input}
+            value={panel.air ?? "cue"}
+            onChange={(e) => props.onChange({ air: e.target.value as "cue" | "live" })}
+            title="Cue: prepare on selection, commit on take (VER/ALL). Live: stream to program once taken on air (e.g. a ticker)."
+          >
+            <option value="cue">Cue — prepare on selection, take with VER/ALL</option>
+            <option value="live">Live — stream to program once on air (ticker)</option>
+          </select>
+        </div>
+      </div>
+
       <div style={{ ...S.lbl, marginTop: 16 }}>
         Bindings → source ({bindings.length})
+        {(panel.air ?? "cue") === "cue" && (
+          <span style={S.muted}> · ⚡ = stream this field live even while cued</span>
+        )}
       </div>
       {err && <div style={S.error}>{err}</div>}
       {!selectedItem && <div style={S.muted}>Pick an item to load its bindings.</div>}
@@ -349,7 +511,7 @@ function PanelEditor(props: {
                   >
                     {FORMATS.map((fmt) => (
                       <option key={fmt} value={fmt}>
-                        {fmt}
+                        {FORMAT_LABEL[fmt]}
                       </option>
                     ))}
                   </select>
@@ -361,6 +523,19 @@ function PanelEditor(props: {
                     />
                     img
                   </label>
+                  {(panel.air ?? "cue") === "cue" && b.type !== "trigger" && (
+                    <label
+                      style={S.imgToggle}
+                      title="Stream this field live to program even while the panel is cued (e.g. a ticking turnout%)."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={liveSet.has(b.key)}
+                        onChange={(e) => toggleLive(b.key, e.target.checked)}
+                      />
+                      ⚡
+                    </label>
+                  )}
                 </>
               )}
             </div>
