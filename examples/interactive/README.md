@@ -30,7 +30,8 @@ Build the SDK global once (`cd sdk && npm run build`), serve the repo root, and 
 ```powershell
 npx serve .
 ```
-- `…/examples/interactive/interactive.html?baseUrl=http://localhost:3467&rundownId=12&itemId=340` — standalone (shows a dev login when no token).
+- `…/examples/interactive/interactive.html?baseUrl=http://localhost:3467&rundownId=12&itemId=340` — the real page: **just the `.riv`**, canvas-only.
+- add **`&debug=1`** to show the inspector panel (dev login, air policy, bindings, triggers, raw-SSE log).
 - `…/examples/interactive/embed-demo.html` — the embedding harness.
 
 ## Configuration (target + auth)
@@ -43,7 +44,8 @@ Resolved in order: **`window.__AIRZ__`** (controller-injected) → **URL query**
 | `rundownId`, `itemId` | the playlist item to bind (item link) |
 | `templateId` | a template sandbox (no item, no program impact) |
 | `role` | `control` (default) or `view` (read-only) |
-| `chrome` | `full` (default standalone) or `min` (canvas-only, for embedding) |
+| `chrome` | `min` = **canvas-only (the default served page)** · `full` = inspector panel. Overrides `debug`. |
+| `debug` | `1` shows the inspector panel (connect, air policy, bindings, triggers, log) and logs raw SSE frames. Off = just the `.riv`. |
 | `air`, `onAir` | initial air policy / on-air state |
 | `parentOrigin` | when embedded, the only origin it will postMessage to / accept from |
 | `riveRuntimeUrl`, `riveWasmUrl` | default `/rundown/rive.js` + `.wasm`; CDN fallback in dev |

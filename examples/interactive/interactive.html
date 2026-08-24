@@ -164,6 +164,10 @@
     var inj = window.__AIRZ__ || {};
     var n = function (v) { return v == null || v === "" ? undefined : Number(v); };
     var pick = function (a, b) { return a != null ? a : b; };
+    // The served page is JUST the .riv by default. The inspector panel (connect,
+    // air policy, bindings, triggers, log) is a debug surface, shown only with
+    // ?debug=1 (or an explicit ?chrome=full).
+    var debug = inj.debug != null ? !!inj.debug : q.get("debug") === "1";
     return {
       // Hosted by the controller → same origin. In dev (served by a static server,
       // no injected config) → default to the controller, not the static server.
@@ -174,13 +178,13 @@
       templateId: pick(inj.templateId != null ? Number(inj.templateId) : n(q.get("templateId")), undefined),
       role: inj.role || q.get("role") || "control",                  // control | view
       embed: isEmbedded(),
-      chrome: inj.chrome || q.get("chrome") || (isEmbedded() ? "min" : "full"),
+      chrome: inj.chrome || q.get("chrome") || (debug ? "full" : "min"),   // canvas-only unless debugging
       parentOrigin: inj.parentOrigin || q.get("parentOrigin") || "*",
       riveRuntimeUrl: inj.riveRuntimeUrl || q.get("riveRuntimeUrl") || "/rundown/rive.js",
       riveWasmUrl: inj.riveWasmUrl || q.get("riveWasmUrl") || "/rundown/rive.wasm",
       air: inj.air || q.get("air") || "cue",
       onAir: inj.onAir != null ? !!inj.onAir : q.get("onAir") === "1",
-      debug: inj.debug != null ? !!inj.debug : q.get("debug") === "1",
+      debug: debug,
     };
   }
   var CFG = readConfig();
@@ -404,6 +408,9 @@
         });
       });
     } catch (_) {}
+    // Rive pauses the render loop once the state machine settles; resume it so the
+    // triggered animation actually plays on the canvas.
+    if (fired) { try { var sms = (rive && rive.stateMachineNames) || []; if (sms.length) rive.play(sms[0]); else rive.play(); } catch (_) {} }
     return fired;
   }
   function fireTrigger(name, origin) {
