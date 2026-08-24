@@ -430,7 +430,16 @@
       if (!wsFlushRaf) { wsFlushRaf = true; requestAnimationFrame(flushWs); }
     }
     httpPending[key] = v;
-    if (!httpTimer) httpTimer = setTimeout(flushHttp, sockReady ? 250 : 40);
+    if (sockReady) {
+      // The WS carries the realtime preview. HTTP only PERSISTS the value, once the
+      // move settles (trailing debounce) — otherwise a slow mid-drag PATCH lands
+      // after a newer WS frame and snaps the preview back a step.
+      if (httpTimer) clearTimeout(httpTimer);
+      httpTimer = setTimeout(flushHttp, 220);
+    } else {
+      // No socket: HTTP is the realtime channel — throttle it instead.
+      if (!httpTimer) httpTimer = setTimeout(flushHttp, 40);
+    }
   }
   function flushWs() {
     wsFlushRaf = false;
