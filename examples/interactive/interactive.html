@@ -286,21 +286,33 @@
     return await res.arrayBuffer();
   }
 
+  // Mirrors the controller's /rundown preview exactly: create paused, then reload
+  // with the state machine bound, and fire the first trigger so the graphic shows.
   async function loadGraphic() {
     var R = await loadRiveRuntime();
     if (rive) { try { unsubscribe(); rive.cleanup(); } catch (_) {} rive = null; riveVM = null; }
     var buf = await fetchRiv(templateId);
+    var configured = false;
     rive = new R.Rive({
-      buffer: buf, canvas: els.canvas, autoplay: true, autoBind: true,
+      buffer: buf, canvas: els.canvas, autoplay: false, autoBind: true, useOffscreenRenderer: true,
+      layout: new R.Layout({ fit: R.Fit.Contain, alignment: R.Alignment.Center }),
       onLoad: function () {
+        // Two-step: first load finds the state machine and re-loads with it bound.
+        if (!configured) {
+          var sm = rive.stateMachineNames;
+          if (sm && sm.length) { configured = true; rive.load({ buffer: buf, stateMachines: sm[0], autoplay: true, autoBind: true }); return; }
+          try { rive.play(); } catch (_) {}
+        }
         try { rive.resizeDrawingSurfaceToCanvas(); } catch (_) {}
-        var sms = rive.stateMachineNames || [];
-        try { if (sms.length) rive.play(sms[0]); } catch (_) {}   // pointer interactivity
         riveVM = rive.viewModelInstance || null;
+        riveShownTemplateId = currentTemplateId;
         applyValues();          // seed from item.data
         subscribe();            // outbound read-back
+        // Show the on-state — fire the first trigger (e.g. Animate In), like /rundown.
+        var firstTrig = bindings.find(function (b) { return b.type === "trigger"; });
+        if (firstTrig) setTimeout(function () { fireLocalAnim(firstTrig.key); }, 100);
         setStatus("live", "ok");
-        log("Graphic loaded (" + (sms[0] || "artboard") + ")");
+        log("Graphic loaded (" + ((rive.stateMachineNames || [])[0] || "artboard") + ")");
         post("airz:ready", { bindings: bindings, item: item ? { id: item.id, title: item.title } : null });
       },
       onLoadError: function (e) { setStatus("rive error", "err"); log("Rive load error: " + e, "e"); },
