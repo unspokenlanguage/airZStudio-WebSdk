@@ -420,7 +420,7 @@
       recentPush[key] = Date.now();
       client.items.setData(CFG.rundownId, CFG.itemId, obj(key, v), { mode: pushMode() }).catch(handle401);
       log("→ " + key + " = " + JSON.stringify(v) + " · " + (pushMode() === "live" ? "program" : "preview"));
-    }, 70);
+    }, 40);  // ~25 Hz — keeps a dragged layer feeling live in the controller preview
   }
   // Map an incoming trigger name to one of the template's trigger bindings,
   // exact first then fuzzy ("Animate In" ↔ "Animate In trigger").
