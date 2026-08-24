@@ -6,11 +6,15 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "unpkg": "./dist/airz-sdk.global.min.js",
+  "jsdelivr": "./dist/airz-sdk.global.min.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./global": "./dist/airz-sdk.global.js",
+    "./global.min": "./dist/airz-sdk.global.min.js"
   },
   "files": [
     "dist",
@@ -31,7 +35,8 @@
     "sdk"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && npm run build:global",
+    "build:global": "esbuild src/index.ts --bundle --format=iife --global-name=Airz --platform=browser --target=es2019 --outfile=dist/airz-sdk.global.js && esbuild src/index.ts --bundle --format=iife --global-name=Airz --platform=browser --target=es2019 --minify --outfile=dist/airz-sdk.global.min.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "watch": "tsc -p tsconfig.json --watch",
     "clean": "rimraf dist",
@@ -42,6 +47,7 @@
     "access": "restricted"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "rimraf": "^6.0.1",
     "typescript": "^5.6.0"
   }

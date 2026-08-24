@@ -318,18 +318,30 @@ function PanelEditor(props: {
   const panelOptions = catalog.filter((c) => c.panelId === panel.panelId || !usedIds.has(c.panelId));
   const [rundowns, setRundowns] = useState<Rundown[]>([]);
   const [items, setItems] = useState<RundownItem[]>([]);
+  const [templatesById, setTemplatesById] = useState<Map<number, string>>(new Map());
   const [bindings, setBindings] = useState<BindingInfo[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!client) return;
     client.rundowns.list().then(setRundowns).catch((e) => setErr(String(e)));
+    // Template names, so an item with no title reads as its graphic name, not an id.
+    client.templates
+      .list()
+      .then((tpls) => setTemplatesById(new Map(tpls.map((t) => [t.id, t.name]))))
+      .catch(() => {});
   }, [client]);
 
   useEffect(() => {
     if (!client || !panel.rundownId) return;
     client.items.list(panel.rundownId).then(setItems).catch((e) => setErr(String(e)));
   }, [client, panel.rundownId]);
+
+  // A human label for an item: its title, else its Rive template name, else id.
+  const itemLabel = (i: RundownItem) => {
+    const tname = i.templateId ? templatesById.get(i.templateId) : undefined;
+    return (i.title ?? "").trim() || tname || `Item ${i.id}`;
+  };
 
   const selectedItem = items.find((i) => i.id === panel.itemId);
   useEffect(() => {
@@ -428,7 +440,7 @@ function PanelEditor(props: {
             <option value="">— select —</option>
             {items.map((i) => (
               <option key={i.id} value={i.id}>
-                {i.title ?? `Item ${i.id}`}
+                {itemLabel(i)}
               </option>
             ))}
           </select>
