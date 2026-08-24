@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>airZ · Embed demo</title>
+<!--
+  Demonstrates a web-SDK app EMBEDDING the hosted /interactive page and driving it
+  over the postMessage API — the pattern the Item-Config panel and custom UIs use.
+  It logs in with the SDK to get a token, mounts interactive.html in an iframe with
+  that token, then sends setField / fireTrigger and logs the frame's events.
+
+  Serve the repo root and open this over http (npx serve .).
+-->
+<script src="../../sdk/dist/airz-sdk.global.min.js"></script>
+<script src="embed.js"></script>
+<style>
+  :root{--bg:#0b0b10;--panel:#15151c;--border:rgba(255,255,255,.1);--txt:#e9e9ee;--muted:#8b8f99;--accent:#39d98a;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px system-ui,Segoe UI,Roboto,sans-serif}
+  header{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700}
+  main{display:grid;grid-template-columns:340px 1fr;gap:0;height:calc(100vh - 51px)}
+  .side{border-right:1px solid var(--border);padding:16px;overflow:auto}
+  .side h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 8px}
+  label{display:block;font-size:11px;color:var(--muted);margin:8px 0 3px}
+  input,button{font:inherit;border-radius:8px}
+  input{width:100%;background:#0e0e13;border:1px solid var(--border);color:var(--txt);padding:8px 10px}
+  button{background:#1b1d25;border:1px solid var(--border);color:var(--txt);padding:8px 12px;font-weight:600;cursor:pointer}
+  button.primary{background:var(--accent);color:#06231a;border-color:transparent}
+  .row{display:flex;gap:8px;align-items:center}
+  .stage{padding:0;background:#000}
+  .stage iframe{width:100%;height:100%}
+  .frameHost{width:100%;height:100%}
+  .log{font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--muted);margin-top:10px;max-height:220px;overflow:auto}
+  .log b{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>🔌 Embed demo — host page driving the hosted /interactive preview</header>
+<main>
+  <div class="side">
+    <h2>Controller</h2>
+    <label>Base URL</label><input id="base" value="http://localhost:3467" />
+    <div class="row"><div style="flex:1"><label>User</label><input id="user" value="admin" /></div><div style="flex:1"><label>Password</label><input id="pass" type="password" /></div></div>
+    <div class="row"><div style="flex:1"><label>Rundown ID</label><input id="rid" placeholder="12" /></div><div style="flex:1"><label>Item ID</label><input id="iid" placeholder="340" /></div></div>
+    <div style="margin-top:12px"><button id="mount" class="primary">Log in &amp; mount</button></div>
+
+    <h2>Drive it</h2>
+    <div class="row"><input id="fkey" placeholder="binding key" style="flex:1" /><input id="fval" placeholder="value" style="flex:1" /></div>
+    <div style="margin-top:8px" class="row"><button id="setField">Set field</button><button id="live">Mode: live</button><button id="onair">On air</button></div>
+    <label style="margin-top:10px">Trigger name</label>
+    <div class="row"><input id="tname" placeholder="Animate In trigger" style="flex:1" /><button id="fire">Fire</button></div>
+
+    <h2>Frame events</h2>
+    <div id="log" class="log"></div>
+  </div>
+  <div class="stage"><div id="host" class="frameHost"></div></div>
+</main>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var view = null, onAir = false, mode = "cue";
+  function log(m){ var d=document.createElement("div"); d.innerHTML=new Date().toLocaleTimeString()+" "+m; $("log").prepend(d); }
+
+  $("mount").onclick = async function(){
+    try {
+      var base = $("base").value.trim();
+      var c = Airz.createClient({ baseUrl: base });
+      var s = await c.auth.login($("user").value.trim() || "admin", $("pass").value);
+      log("<b>logged in</b> as " + s.user.username);
+      if (view) view.destroy();
+      view = AirzInteractive.mount("#host", {
+        src: "interactive.html",                    // dev: sibling file. Hosted: /interactive/interactive.html
+        baseUrl: base, token: c.getToken(),
+        rundownId: Number($("rid").value) || undefined,
+        itemId: Number($("iid").value) || undefined,
+        role: "control", chrome: "min", height: "100%",
+      });
+      view.on("airz:ready", function(m){ log("<b>ready</b> · " + (m.bindings ? m.bindings.length : 0) + " bindings"); });
+      view.on("airz:valueChanged", function(m){ log("value " + m.key + " = " + JSON.stringify(m.value) + " (" + m.origin + ")"); });
+      view.on("airz:triggered", function(m){ log("trigger " + m.name + " (" + m.origin + ")"); });
+      view.on("airz:error", function(m){ log("<b style=color:#ff5d5d>error</b> " + m.message); });
+    } catch(err){ log("<b style=color:#ff5d5d>login/mount failed</b> " + (err && err.message || err)); }
+  };
+
+  $("setField").onclick = function(){ if (!view) return; var v = $("fval").value; var n = Number(v); view.setField($("fkey").value, v!=="" && !isNaN(n) ? n : v); };
+  $("fire").onclick = function(){ if (view) view.fireTrigger($("tname").value); };
+  $("live").onclick = function(){ if(!view) return; mode = mode==="live"?"cue":"live"; view.setMode(mode); this.textContent = "Mode: " + mode; };
+  $("onair").onclick = function(){ if(!view) return; onAir=!onAir; view.setOnAir(onAir); this.textContent = onAir?"ON AIR":"On air"; };
+})();
+</script>
+</body>
+</html>

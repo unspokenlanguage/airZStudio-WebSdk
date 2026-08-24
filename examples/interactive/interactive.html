@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>airZ · Interactive</title>
+<!--
+  THE HOSTABLE INTERACTIVE PREVIEW.
+
+  This is the single canonical preview/control surface. It is meant to be served
+  by the controller at  /interactive/:rundownId/:itemId  (or ?templateId=…), and
+  embedded (iframe) by the playlist Item-Config panel, by presenter links, and by
+  any web-SDK app — none of which re-implement Rive rendering; they embed this.
+
+  It renders the item's actual .riv (templates.get.fileUrl) with the vendored
+  runtime (/rundown/rive.js, CDN fallback for standalone dev) and keeps the graphic
+  and the controller in two-way sync (prop.on outbound, SSE inbound), bounded by
+  the cue/live + on-air policy.
+
+  Target + auth resolution order: window.__AIRZ__ (controller-injected) → URL query
+  → manual login (dev). Same-origin hosting should inject a token; external links
+  carry a signed ?t=… token.
+
+  Embed API (postMessage), when in an iframe:
+    parent → frame : {type:'airz:setField', key, value}
+                     {type:'airz:fireTrigger', name}
+                     {type:'airz:setMode', mode:'cue'|'live'}
+                     {type:'airz:setOnAir', on:true|false}
+                     {type:'airz:reload'}
+    frame  → parent: {type:'airz:ready', bindings:[{key,type}], item}
+                     {type:'airz:valueChanged', key, value, origin:'presenter'|'remote'}
+                     {type:'airz:triggered', name, origin}
+                     {type:'airz:state', air, onAir, connected}
+                     {type:'airz:error', message}
+-->
+<script>
+  // Load the SDK global (sibling when hosted, repo dist for dev). Exposes window.Airz.
+  window.__airzSdk = new Promise(function (resolve, reject) {
+    var srcs = [(window.__AIRZ__ && window.__AIRZ__.sdkUrl) || null,
+                "airz-sdk.global.min.js",
+                "../../sdk/dist/airz-sdk.global.min.js"].filter(Boolean);
+    (function next(i) {
+      if (i >= srcs.length) { reject(new Error("SDK global not found")); return; }
+      var s = document.createElement("script");
+      s.src = srcs[i];
+      s.onload = function () { window.Airz ? resolve(window.Airz) : next(i + 1); };
+      s.onerror = function () { next(i + 1); };
+      document.head.appendChild(s);
+    })(0);
+  });
+</script>
+<style>
+  :root {
+    --bg:#0a0a0f; --panel:rgba(20,20,26,.72); --border:rgba(255,255,255,.10);
+    --txt:#e9e9ee; --muted:#8b8f99; --accent:#39d98a; --accent2:#4aa8ff; --danger:#ff5d5d;
+    --live:#ff5d5d; --cue:#4aa8ff;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { display:grid; grid-template-rows:auto 1fr; height:100vh; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--border); }
+  header h1 { font-size:14px; margin:0; letter-spacing:.4px; font-weight:700; }
+  header .sub { font-size:12px; color:var(--muted); }
+  header .spacer { flex:1; }
+  .chip { font-size:11px; padding:3px 9px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .chip.ok { color:var(--accent); border-color:rgba(57,217,138,.4); }
+  .chip.err { color:var(--danger); border-color:rgba(255,93,93,.4); }
+  .chip.air-live { color:var(--live); border-color:rgba(255,93,93,.5); }
+  .chip.air-cue { color:var(--cue); border-color:rgba(74,168,255,.5); }
+  select,input,button { font:inherit; }
+  select,input[type=text],input[type=number] { background:#0e0e13; border:1px solid var(--border); color:var(--txt); border-radius:7px; padding:6px 8px; }
+  select:focus,input:focus { outline:none; border-color:var(--accent2); }
+  button { background:#1b1d25; border:1px solid var(--border); color:var(--txt); border-radius:8px; padding:7px 12px; font-weight:600; cursor:pointer; }
+  button:hover { border-color:var(--accent2); }
+  button.on { background:var(--accent); color:#06231a; border-color:transparent; }
+
+  main { display:grid; grid-template-columns:1fr 320px; min-height:0; }
+  body.embed main { grid-template-columns:1fr; }
+  body.embed header, body.embed .side { display:none; }
+
+  .stage { display:flex; align-items:center; justify-content:center; padding:16px; min-height:0; overflow:auto; }
+  .stage canvas { width:100%; max-width:min(100%, 900px); height:auto; aspect-ratio:16/9; background:#0b0d11; border-radius:12px; display:block; pointer-events:auto; touch-action:none; }
+  body.embed .stage { padding:0; }
+  body.embed .stage canvas { max-width:100%; border-radius:0; }
+
+  .side { border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
+  .side .sec { padding:12px 14px; border-bottom:1px solid var(--border); }
+  .side h2 { font-size:11px; letter-spacing:1.3px; text-transform:uppercase; color:var(--muted); margin:0 0 10px; }
+  .side .scroll { overflow:auto; }
+  .field { display:grid; grid-template-columns:1fr 1.15fr; gap:8px; align-items:center; margin-bottom:8px; }
+  .field label { font:12px ui-monospace,Menlo,Consolas,monospace; color:#d6d6db; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .field label em { color:var(--muted); font-style:normal; font-size:10px; }
+  .field input[type=text],.field input[type=number] { width:100%; }
+  .field input[type=color] { width:44px; height:28px; padding:0; border:1px solid var(--border); border-radius:6px; background:#0e0e13; }
+  .field .ro { font-size:11px; color:var(--muted); }
+  .trigs { display:flex; flex-wrap:wrap; gap:8px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .log { font:11px/1.5 ui-monospace,Menlo,Consolas,monospace; color:var(--muted); max-height:120px; overflow:auto; }
+  .log .e { color:var(--danger); }
+  .login { padding:16px; display:flex; flex-direction:column; gap:8px; max-width:320px; }
+  .note { padding:12px 16px; color:var(--muted); font-size:13px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚡ airZ Interactive</h1>
+    <span class="sub" id="target">—</span>
+    <span class="spacer"></span>
+    <span class="chip air-cue" id="airChip">cue</span>
+    <button id="onAirBtn">On air</button>
+    <span class="chip" id="status">connecting…</span>
+  </header>
+
+  <main>
+    <div class="stage"><canvas id="canvas" width="1280" height="720"></canvas></div>
+
+    <aside class="side">
+      <!-- dev-only manual login (hidden when a token is supplied) -->
+      <div class="sec login hidden" id="loginBox">
+        <h2>Connect (dev)</h2>
+        <input id="lgBase" type="text" placeholder="http://localhost:3467" />
+        <div class="row"><input id="lgUser" type="text" placeholder="admin" style="flex:1" /><input id="lgPass" type="password" placeholder="password" style="flex:1" /></div>
+        <button id="lgBtn" class="on">Connect</button>
+      </div>
+
+      <div class="sec">
+        <h2>Air policy</h2>
+        <div class="row">
+          <select id="airSel">
+            <option value="cue">cue — commit on TAKE</option>
+            <option value="live">live — stream on air</option>
+          </select>
+        </div>
+        <p class="ro" style="margin:8px 0 0;color:var(--muted);font-size:11px">Changes reach <b>program</b> only when live + on air. Otherwise preview.</p>
+      </div>
+
+      <div class="sec scroll" style="flex:1">
+        <h2>Bindings</h2>
+        <div id="fields" class="note">Loading…</div>
+        <h2 style="margin-top:14px">Triggers</h2>
+        <div id="triggers" class="trigs"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Activity</h2>
+        <div id="log" class="log"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ── config ────────────────────────────────────────────────────────────────
+  function isEmbedded() { try { return window.parent && window.parent !== window; } catch (_) { return true; } }
+  function readConfig() {
+    var q = new URLSearchParams(location.search);
+    var inj = window.__AIRZ__ || {};
+    var n = function (v) { return v == null || v === "" ? undefined : Number(v); };
+    var pick = function (a, b) { return a != null ? a : b; };
+    return {
+      baseUrl: inj.baseUrl || q.get("baseUrl") || location.origin,   // hosted → same origin
+      token: inj.token || q.get("t") || q.get("token") || null,
+      rundownId: pick(inj.rundownId != null ? Number(inj.rundownId) : n(q.get("rundownId")), undefined),
+      itemId: pick(inj.itemId != null ? Number(inj.itemId) : n(q.get("itemId")), undefined),
+      templateId: pick(inj.templateId != null ? Number(inj.templateId) : n(q.get("templateId")), undefined),
+      role: inj.role || q.get("role") || "control",                  // control | view
+      embed: isEmbedded(),
+      chrome: inj.chrome || q.get("chrome") || (isEmbedded() ? "min" : "full"),
+      parentOrigin: inj.parentOrigin || q.get("parentOrigin") || "*",
+      riveRuntimeUrl: inj.riveRuntimeUrl || q.get("riveRuntimeUrl") || "/rundown/rive.js",
+      riveWasmUrl: inj.riveWasmUrl || q.get("riveWasmUrl") || "/rundown/rive.wasm",
+      air: inj.air || q.get("air") || "cue",
+      onAir: inj.onAir != null ? !!inj.onAir : q.get("onAir") === "1",
+    };
+  }
+  var CFG = readConfig();
+  if (CFG.chrome !== "full") document.body.classList.add("embed");
+  var viewOnly = CFG.role === "view";
+
+  // ── els + state ───────────────────────────────────────────────────────────
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    target: $("target"), status: $("status"), airChip: $("airChip"), onAirBtn: $("onAirBtn"),
+    canvas: $("canvas"), fields: $("fields"), triggers: $("triggers"), log: $("log"),
+    airSel: $("airSel"), loginBox: $("loginBox"),
+  };
+  var Airz = null, client = null, item = null, templateId = null;
+  var bindings = [];                 // [{key,type}]
+  var vals = {};                     // key → current value
+  var rive = null, riveVM = null;
+  var lastVM = {};                   // echo guard: last value we wrote/pushed
+  var pushTimers = {}, suppressTrig = new Set(), subs = [], stream = null, streamOffs = [];
+  var air = CFG.air === "live" ? "live" : "cue";
+  var onAir = !!CFG.onAir;
+
+  function log(m, k) {
+    var d = document.createElement("div");
+    d.innerHTML = new Date().toLocaleTimeString() + " " + (k ? '<span class="' + k + '">' + m + "</span>" : m);
+    els.log.prepend(d);
+  }
+  function setStatus(t, c) { els.status.textContent = t; els.status.className = "chip" + (c ? " " + c : ""); }
+  function pushMode() { return air === "live" && onAir ? "live" : "staged"; }
+  function refreshAirUI() {
+    els.airSel.value = air;
+    els.airChip.textContent = air; els.airChip.className = "chip air-" + air;
+    els.onAirBtn.classList.toggle("on", onAir);
+    els.onAirBtn.textContent = onAir ? "ON AIR" : "On air";
+    post("airz:state", { air: air, onAir: onAir, connected: !!client });
+  }
+
+  // ── embed API (postMessage) ───────────────────────────────────────────────
+  function post(type, data) {
+    if (!CFG.embed) return;
+    try { window.parent.postMessage(Object.assign({ type: type }, data || {}), CFG.parentOrigin); } catch (_) {}
+  }
+  window.addEventListener("message", function (e) {
+    if (CFG.parentOrigin !== "*" && e.origin !== CFG.parentOrigin) return;
+    var m = e.data || {};
+    switch (m.type) {
+      case "airz:setField": if (!viewOnly) setField(m.key, m.value, "parent"); break;
+      case "airz:fireTrigger": if (!viewOnly) fireTrigger(m.name, "parent"); break;
+      case "airz:setMode": if (m.mode === "cue" || m.mode === "live") { air = m.mode; refreshAirUI(); } break;
+      case "airz:setOnAir": onAir = !!m.on; refreshAirUI(); break;
+      case "airz:reload": boot(); break;
+    }
+  });
+
+  // ── connect ───────────────────────────────────────────────────────────────
+  async function ensureClient() {
+    if (client) return client;
+    if (CFG.token) { client = Airz.createClient({ baseUrl: CFG.baseUrl, token: CFG.token }); return client; }
+    // dev: manual login
+    els.loginBox.classList.remove("hidden");
+    setStatus("login required", "err");
+    return new Promise(function (resolve) {
+      $("lgBase").value = CFG.baseUrl;
+      $("lgBtn").onclick = async function () {
+        try {
+          var c = Airz.createClient({ baseUrl: $("lgBase").value.trim() || CFG.baseUrl });
+          await c.auth.login($("lgUser").value.trim() || "admin", $("lgPass").value);
+          client = c; els.loginBox.classList.add("hidden"); resolve(c);
+        } catch (err) { setStatus("login failed", "err"); log("Login failed: " + (err && err.message || err), "e"); }
+      };
+    });
+  }
+
+  // ── rive runtime + graphic ────────────────────────────────────────────────
+  function loadScript(src) {
+    return new Promise(function (res, rej) { var s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = function () { rej(new Error("load " + src)); }; document.head.appendChild(s); });
+  }
+  async function loadRiveRuntime() {
+    if (window.rive) return window.rive;
+    try { await loadScript(CFG.riveRuntimeUrl); if (window.rive) { setWasm(CFG.riveWasmUrl); return window.rive; } } catch (_) {}
+    await loadScript("https://unpkg.com/@rive-app/canvas@2.40.1/rive.js");   // dev fallback (CDN wasm default)
+    return window.rive;
+  }
+  function setWasm(url) { try { if (window.rive && window.rive.RuntimeLoader) window.rive.RuntimeLoader.setWasmUrl(url); } catch (_) {} }
+  function baseOrigin() { return CFG.baseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, ""); }
+
+  async function fetchRiv(tid) {
+    var tpl = await client.templates.get(tid);
+    var raw = tpl.fileUrl || tpl.downloadUrl || "";
+    if (!raw) throw new Error("template has no fileUrl");
+    var url = /^https?:/i.test(raw) ? raw : baseOrigin() + raw;
+    var headers = client.getToken ? { Authorization: "Bearer " + client.getToken() } : {};
+    var res = await fetch(url, { headers: headers });
+    if (!res.ok) throw new Error(".riv fetch " + res.status);
+    return await res.arrayBuffer();
+  }
+
+  async function loadGraphic() {
+    var R = await loadRiveRuntime();
+    if (rive) { try { unsubscribe(); rive.cleanup(); } catch (_) {} rive = null; riveVM = null; }
+    var buf = await fetchRiv(templateId);
+    rive = new R.Rive({
+      buffer: buf, canvas: els.canvas, autoplay: true, autoBind: true,
+      onLoad: function () {
+        try { rive.resizeDrawingSurfaceToCanvas(); } catch (_) {}
+        var sms = rive.stateMachineNames || [];
+        try { if (sms.length) rive.play(sms[0]); } catch (_) {}   // pointer interactivity
+        riveVM = rive.viewModelInstance || null;
+        applyValues();          // seed from item.data
+        subscribe();            // outbound read-back
+        setStatus("live", "ok");
+        log("Graphic loaded (" + (sms[0] || "artboard") + ")");
+        post("airz:ready", { bindings: bindings, item: item ? { id: item.id, title: item.title } : null });
+      },
+      onLoadError: function (e) { setStatus("rive error", "err"); log("Rive load error: " + e, "e"); },
+    });
+    window.addEventListener("resize", function () { if (rive) try { rive.resizeDrawingSurfaceToCanvas(); } catch (_) {} });
+  }
+
+  // ── bindings UI (auto-generated from the template) ────────────────────────
+  function buildFields() {
+    var data = bindings.filter(function (b) { return b.type !== "trigger"; });
+    var trig = bindings.filter(function (b) { return b.type === "trigger"; });
+    els.fields.innerHTML = data.length ? "" : '<span class="ro">No data bindings.</span>';
+    els.fields.className = "";
+    data.forEach(function (b) {
+      var row = document.createElement("div"); row.className = "field";
+      var lab = document.createElement("label"); lab.title = b.key;
+      lab.innerHTML = esc(b.key) + " <em>" + b.type + "</em>";
+      var input = fieldInput(b);
+      row.appendChild(lab); row.appendChild(input); els.fields.appendChild(row);
+    });
+    els.triggers.innerHTML = "";
+    trig.forEach(function (b) {
+      var btn = document.createElement("button"); btn.textContent = b.key;
+      btn.disabled = viewOnly;
+      btn.onclick = function () { fireTrigger(b.key, "field"); };
+      els.triggers.appendChild(btn);
+    });
+    if (!trig.length) els.triggers.innerHTML = '<span class="ro">No triggers.</span>';
+  }
+  function fieldInput(b) {
+    var el;
+    if (b.type === "boolean") { el = document.createElement("input"); el.type = "checkbox"; el.checked = !!vals[b.key];
+      el.onchange = function () { setField(b.key, el.checked, "field"); }; }
+    else if (b.type === "number") { el = document.createElement("input"); el.type = "number"; el.value = vals[b.key] != null ? vals[b.key] : "";
+      el.oninput = function () { setField(b.key, Number(el.value), "field"); }; }
+    else if (b.type === "color") { el = document.createElement("input"); el.type = "color"; el.value = toHex(vals[b.key]) || "#ffffff";
+      el.oninput = function () { setField(b.key, el.value, "field"); }; }
+    else if (b.type === "image") { el = document.createElement("span"); el.className = "ro"; el.textContent = "image — set from the controller"; }
+    else { el = document.createElement("input"); el.type = "text"; el.value = vals[b.key] != null ? String(vals[b.key]) : "";
+      el.oninput = function () { setField(b.key, el.value, "field"); }; }
+    el.dataset.key = b.key; el.disabled = viewOnly && b.type !== "image";
+    return el;
+  }
+  function updateFieldUI(key, v) {
+    var el = els.fields.querySelector('[data-key="' + cssq(key) + '"]');
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!v;
+    else if (el.type === "color") el.value = toHex(v) || el.value;
+    else if (el.tagName === "INPUT") el.value = v == null ? "" : v;
+  }
+
+  // ── the core: identity mapping (field key = binding key = VM property) ─────
+  function setVM(key, type, v) {
+    if (!riveVM) return;
+    try {
+      if (type === "number") { var p = riveVM.number(key); if (p) { var nv = Number(v) || 0; lastVM[key] = nv; p.value = nv; } }
+      else if (type === "boolean") { var pb = riveVM.boolean(key); if (pb) { var bv = !!v; lastVM[key] = bv; pb.value = bv; } }
+      else if (type === "color") { var pc = riveVM.color(key); if (pc) { var cv = toArgb(v); if (cv != null) { lastVM[key] = v; pc.value = cv; } } }
+      else if (type !== "image") { var ps = riveVM.string(key); if (ps) { var sv = String(v == null ? "" : v); lastVM[key] = sv; ps.value = sv; } }
+    } catch (_) {}
+  }
+  function typeOf(key) { var b = bindings.find(function (x) { return x.key === key; }); return b ? b.type : "string"; }
+
+  // local edit / parent command → set VM + UI + push to controller
+  function setField(key, v, origin) {
+    if (viewOnly) return;
+    var t = typeOf(key);
+    vals[key] = v;
+    setVM(key, t, v);
+    updateFieldUI(key, v);
+    pushKey(key, v);
+    post("airz:valueChanged", { key: key, value: v, origin: origin || "field" });
+  }
+  function pushKey(key, v) {
+    if (!client || CFG.itemId == null) return;
+    clearTimeout(pushTimers[key]);
+    pushTimers[key] = setTimeout(function () {
+      client.items.setData(CFG.rundownId, CFG.itemId, obj(key, v), { mode: pushMode() }).catch(function () {});
+      log("→ " + key + " = " + JSON.stringify(v) + " · " + (pushMode() === "live" ? "program" : "preview"));
+    }, 70);
+  }
+  function fireTrigger(name, origin) {
+    if (viewOnly || !riveVM) return;
+    try { suppressTrig.add(name); setTimeout(function () { suppressTrig.delete(name); }, 250); var t = riveVM.trigger(name); if (t) t.trigger(); } catch (_) {}
+    if (client && CFG.itemId != null) {
+      client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(function () {});
+    }
+    log("▶ trigger " + name + " · " + (pushMode() === "live" ? "program" : "preview"));
+    post("airz:triggered", { name: name, origin: origin || "field" });
+  }
+
+  // seed the VM + UI from the item's stored bindings
+  function applyValues() {
+    bindings.forEach(function (b) {
+      if (b.type === "trigger" || b.type === "image") return;
+      if (!(b.key in vals)) return;
+      setVM(b.key, b.type, vals[b.key]);
+      updateFieldUI(b.key, vals[b.key]);
+    });
+  }
+
+  // ── outbound read-back: presenter interacts → push ────────────────────────
+  function unsubscribe() { subs.forEach(function (u) { try { u(); } catch (_) {} }); subs = []; }
+  function subscribe() {
+    unsubscribe();
+    if (!riveVM || viewOnly) return;
+    bindings.forEach(function (b) {
+      try {
+        if (b.type === "trigger") {
+          var t = riveVM.trigger(b.key); if (!t || !t.on) return;
+          var cbt = function () { onVMTrigger(b.key); };
+          t.on(cbt); subs.push(function () { try { t.off && t.off(cbt); } catch (_) {} });
+        } else if (b.type !== "image" && b.type !== "color") {
+          var p = b.type === "number" ? riveVM.number(b.key) : b.type === "boolean" ? riveVM.boolean(b.key) : riveVM.string(b.key);
+          if (!p || !p.on) return;
+          var cb = function () { onVMValue(b.key, b.type, p); };
+          p.on(cb); subs.push(function () { try { p.off && p.off(cb); } catch (_) {} });
+        }
+      } catch (_) {}
+    });
+  }
+  function onVMValue(key, type, prop) {
+    var v; try { v = prop.value; } catch (_) { return; }
+    if (lastVM[key] === v) return;               // our own write
+    lastVM[key] = v; vals[key] = v;
+    updateFieldUI(key, v);
+    pushKey(key, v);
+    post("airz:valueChanged", { key: key, value: v, origin: "presenter" });
+  }
+  function onVMTrigger(name) {
+    if (suppressTrig.has(name)) return;
+    if (client && CFG.itemId != null) client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(function () {});
+    log("↩ presenter fired " + name);
+    post("airz:triggered", { name: name, origin: "presenter" });
+  }
+
+  // ── inbound: SSE → apply other surfaces' changes onto the canvas ──────────
+  function openStream() {
+    closeStream();
+    if (!client) return;
+    try {
+      stream = client.stream({ onState: function (s) { if (s === "open") log("live stream connected"); } });
+      streamOffs.push(stream.on("item.updated", onRemoteUpdated));
+      streamOffs.push(stream.on("item.trigger", onRemoteTrigger));
+    } catch (e) { log("stream failed: " + (e && e.message || e), "e"); }
+  }
+  function closeStream() { streamOffs.forEach(function (o) { try { o(); } catch (_) {} }); streamOffs = []; if (stream) { try { stream.close(); } catch (_) {} stream = null; } }
+  function evItemId(d) { return Number(d.itemId != null ? d.itemId : (d.id != null ? d.id : (d.item && d.item.id))); }
+  async function onRemoteUpdated(e) {
+    var d = e.data || {};
+    if (CFG.itemId == null || evItemId(d) !== CFG.itemId) return;
+    var data = d.data || (d.item && d.item.data);
+    if (!data || typeof data !== "object") { try { var it = await client.items.get(CFG.rundownId, CFG.itemId); data = it && it.data || {}; } catch (_) { return; } }
+    var applied = 0;
+    bindings.forEach(function (b) {
+      if (b.type === "trigger" || b.type === "image" || !(b.key in data)) return;
+      var v = unwrap(data[b.key]);
+      if (b.type === "number") v = Number(v);
+      else if (b.type === "boolean") v = (v === true || v === "true" || v === 1 || v === "1");
+      else if (b.type !== "color") v = String(v);
+      if (lastVM[b.key] === v) return;           // our own echo
+      vals[b.key] = v; setVM(b.key, b.type, v); updateFieldUI(b.key, v); applied++;
+      post("airz:valueChanged", { key: b.key, value: v, origin: "remote" });
+    });
+    if (applied) log("⇣ applied " + applied + " remote change(s)");
+  }
+  function onRemoteTrigger(e) {
+    var d = e.data || {};
+    if (CFG.itemId == null || evItemId(d) !== CFG.itemId || !riveVM) return;
+    var name = d.trigger || d.name || d.triggerName;
+    if (!name || suppressTrig.has(name)) return;
+    try { var t = riveVM.trigger(name); if (t) { t.trigger(); log("⇣ remote trigger " + name); post("airz:triggered", { name: name, origin: "remote" }); } } catch (_) {}
+  }
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  function obj(k, v) { var o = {}; o[k] = v; return o; }
+  function unwrap(v) { return v && typeof v === "object" && "value" in v ? v.value : v; }
+  function esc(s) { return String(s).replace(/[<>&]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]; }); }
+  function cssq(s) { return String(s).replace(/["\\]/g, "\\$&"); }
+  function toHex(v) { if (typeof v === "string" && /^#?[0-9a-f]{6}/i.test(v)) return v[0] === "#" ? v : "#" + v; if (typeof v === "number") { var h = (v & 0xffffff).toString(16); return "#" + "000000".slice(h.length) + h; } return null; }
+  function toArgb(v) { var h = toHex(v); if (!h) return null; return (0xff000000 | parseInt(h.slice(1, 7), 16)) >>> 0; }
+
+  // ── boot ──────────────────────────────────────────────────────────────────
+  async function boot() {
+    try {
+      setStatus("connecting…");
+      await ensureClient();
+      // resolve the template from the item (or a direct templateId)
+      if (CFG.itemId != null) {
+        item = await client.items.get(CFG.rundownId, CFG.itemId);
+        templateId = item && item.templateId;
+        els.target.textContent = (item && (item.title || ("item " + item.id))) || ("item " + CFG.itemId);
+        // seed current values (unwrap {type,value})
+        var d = (item && item.data) || {}; vals = {}; Object.keys(d).forEach(function (k) { vals[k] = unwrap(d[k]); });
+      } else if (CFG.templateId != null) {
+        templateId = CFG.templateId; els.target.textContent = "template " + templateId + " (sandbox)";
+      } else { setStatus("no target", "err"); log("No itemId or templateId given.", "e"); return; }
+      if (!templateId) { setStatus("no template", "err"); log("Target has no Rive template.", "e"); return; }
+
+      bindings = await Airz.describeTemplateBindings(client, templateId);
+      buildFields();
+      refreshAirUI();
+      await loadGraphic();
+      openStream();
+    } catch (err) { setStatus("error", "err"); log("Boot error: " + (err && err.message || err), "e"); post("airz:error", { message: String(err && err.message || err) }); }
+  }
+
+  // wire local controls (control role only)
+  els.airSel.onchange = function () { air = els.airSel.value === "live" ? "live" : "cue"; refreshAirUI(); log("air policy → " + air); };
+  els.onAirBtn.onclick = function () { onAir = !onAir; refreshAirUI(); log(onAir ? "ON AIR" : "rehearse"); };
+  if (viewOnly) { els.airSel.disabled = true; els.onAirBtn.disabled = true; }
+
+  window.__airzSdk.then(function (SDK) { Airz = SDK; boot(); })
+    .catch(function (e) { setStatus("SDK missing", "err"); log("SDK failed to load: " + (e && e.message || e), "e"); });
+})();
+</script>
+</body>
+</html>
