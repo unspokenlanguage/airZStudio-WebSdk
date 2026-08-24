@@ -165,7 +165,9 @@
     var n = function (v) { return v == null || v === "" ? undefined : Number(v); };
     var pick = function (a, b) { return a != null ? a : b; };
     return {
-      baseUrl: inj.baseUrl || q.get("baseUrl") || location.origin,   // hosted → same origin
+      // Hosted by the controller → same origin. In dev (served by a static server,
+      // no injected config) → default to the controller, not the static server.
+      baseUrl: inj.baseUrl || q.get("baseUrl") || (window.__AIRZ__ ? location.origin : "http://localhost:3467"),
       token: inj.token || q.get("t") || q.get("token") || null,
       rundownId: pick(inj.rundownId != null ? Number(inj.rundownId) : n(q.get("rundownId")), undefined),
       itemId: pick(inj.itemId != null ? Number(inj.itemId) : n(q.get("itemId")), undefined),
