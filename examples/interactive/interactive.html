@@ -224,6 +224,7 @@
   var lastVM = {};                   // echo guard: last value we wrote/pushed
   var recentPush = {};               // key → ts of our last local push (time-window guard)
   var ECHO_GUARD_MS = 1500;
+  var animUntil = 0;                 // while now < this, ignore VM value tweens (a trigger is animating)
   var pushTimers = {}, suppressTrig = new Set(), subs = [], stream = null, streamOffs = [];
   var air = CFG.air === "live" ? "live" : "cue";
   var onAir = !!CFG.onAir;
@@ -435,6 +436,12 @@
   //  • a view-model data-binding trigger   • a state-machine trigger input
   function fireLocalAnim(name) {
     var fired = false, key = resolveTriggerKey(name), dbg = [];
+    // Guard our OWN observers: firing a VM trigger notifies our prop.on(onVMTrigger)
+    // and the animation's tweens fire onVMValue — without this that echoes back to
+    // the controller and loops. Suppress the trigger + pause value read-back briefly.
+    suppressTrig.add(name); if (key) suppressTrig.add(key);
+    setTimeout(function () { suppressTrig.delete(name); if (key) suppressTrig.delete(key); }, 500);
+    animUntil = Date.now() + 1500;
     // view-model data-binding trigger
     if (key && riveVM) { try { var t = riveVM.trigger(key); if (t) { t.trigger(); fired = true; dbg.push("vm:" + key); } } catch (_) {} }
     // state-machine trigger input (this is what "Animate In" usually is)
@@ -458,8 +465,7 @@
   }
   function fireTrigger(name, origin) {
     if (viewOnly) return;
-    suppressTrig.add(name); setTimeout(function () { suppressTrig.delete(name); }, 400);
-    fireLocalAnim(name);                          // animate our own canvas
+    fireLocalAnim(name);                          // animate our own canvas (handles the echo-guard)
     if (client && CFG.itemId != null) {          // and fire on the controller
       client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(handle401);
     }
@@ -498,6 +504,7 @@
     });
   }
   function onVMValue(key, type, prop) {
+    if (Date.now() < animUntil) return;          // a trigger is animating — its tweens aren't edits
     var v; try { v = prop.value; } catch (_) { return; }
     if (lastVM[key] === v) return;               // our own write
     lastVM[key] = v; vals[key] = v;
