@@ -32,6 +32,22 @@ What it does:
   properties as you type, TAKE / TAKE OUT fire the bound triggers. Falls back to the
   HTML pitch (the default) when offline or when a `.riv` has no bindable view-model.
 
+### Two-way sync (bidirectional)
+When the Rive preview is showing, the desk keeps the graphic and the controller in
+sync **both ways**, keyed off the mapped view-model properties:
+
+- **Outbound** — it subscribes to each mapped property with `prop.on()`. If the
+  **presenter** changes a value inside the graphic (drag a bound layer, toggle, fire
+  a trigger), the desk diffs it against its own last write (echo guard), throttles,
+  and pushes it — to **program** when the panel is live + on air, else to preview.
+- **Inbound** — on connect it opens the SSE stream (`client.stream`) and listens for
+  `item.updated` / `item.trigger` on the selected item. Changes made by **any other
+  surface** (the playlist panel, program, another host viewer) are applied onto the
+  canvas, skipping the echoes of the desk's own writes.
+
+Together that's N-way sync: playlist panel ↔ this page ↔ program all track one item's
+bindings. Only values the `.riv` exposes as **bound view-model properties** propagate.
+
 ### Rive preview — what it needs
 The runtime is loaded from a CDN (`@rive-app/canvas`), so this mode needs internet.
 The `.riv` is fetched from the controller with your bearer token, so the controller

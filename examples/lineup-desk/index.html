@@ -344,6 +344,7 @@
           const tpls = await client.templates.list();
           templatesById = new Map(tpls.map((t) => [t.id, t.name]));
         } catch (_) { templatesById = new Map(); }
+        openStream();                 // inbound live sync (item.updated / item.trigger)
         await populateRundowns();     // fetch the playlist tree, like the election desk
       } catch (err) {
         client = null;
@@ -354,6 +355,8 @@
       saveConn();
     }
     function disconnect() {
+      unsubscribeRive();
+      closeStream();
       client = null; itemsCache = []; templatesById = new Map();
       currentTemplateId = null; mapping = {}; binder = null;
       els.rundownSel.innerHTML = '<option value="">— connect first —</option>';
@@ -698,6 +701,7 @@
       try {
         const R = await loadRiveRuntime();
         const buf = await fetchRivBuffer(currentTemplateId);
+        unsubscribeRive();
         if (riveInst) { try { riveInst.cleanup(); } catch (_) {} riveInst = null; riveVM = null; }
         riveInst = new R.Rive({
           buffer: buf,
@@ -713,6 +717,7 @@
             riveShownTemplateId = currentTemplateId;
             riveNote(riveVM ? "" : "Loaded, but this .riv exposes no bindable view-model — showing static art.");
             feedRive();
+            subscribeRive();               // start listening for presenter-driven changes
             log("Rive preview loaded (" + (sms[0] || "artboard") + ")" + (sms.length ? " · interactive" : ""));
           },
           onLoadError: (e) => riveNote("Rive load error: " + e),
@@ -724,17 +729,17 @@
     }
 
     // Push the current mapped values into the live Rive view-model.
+    const lastVM = {};                 // echo guard: last value WE wrote/pushed per key
     function feedRive() {
       if (previewMode !== "rive" || !riveVM) return;
       const src = buildPayload();
       Object.entries(mapping).forEach(([key, m]) => {
         if (!m || m.type === "trigger" || !m.from) return;
-        const raw = src[m.from];
         try {
-          if (m.type === "number") { const p = riveVM.number(key); if (p) p.value = Number(raw) || 0; }
-          else if (m.type === "boolean") { const p = riveVM.boolean(key); if (p) p.value = !!raw; }
+          if (m.type === "number") { const p = riveVM.number(key); if (p) { const v = Number(src[m.from]) || 0; p.value = v; lastVM[key] = v; } }
+          else if (m.type === "boolean") { const p = riveVM.boolean(key); if (p) { const v = !!src[m.from]; p.value = v; lastVM[key] = v; } }
           else if (m.type === "color") { /* needs an int color source — skipped */ }
-          else { const p = riveVM.string(key); if (p) p.value = String(fmt(raw, m.format)); }
+          else { const p = riveVM.string(key); if (p) { const v = String(fmt(src[m.from], m.format)); p.value = v; lastVM[key] = v; } }
         } catch (_) { /* the VM property path can differ from the binding key */ }
       });
     }
@@ -742,7 +747,119 @@
       if (previewMode !== "rive" || !riveVM) return;
       const key = firstTriggerFor(action);
       if (!key) return;
-      try { const t = riveVM.trigger(key); if (t) t.trigger(); } catch (_) {}
+      try {
+        suppressTrig.add(key);                                  // don't mirror our own fire back
+        setTimeout(() => suppressTrig.delete(key), 250);
+        const t = riveVM.trigger(key); if (t) t.trigger();
+      } catch (_) {}
+    }
+
+    // ── Two-way: observe the PRESENTER's interactions and push them live ────────
+    // The .riv's state machine writes bound view-model properties (drag → X/Y,
+    // button → boolean/trigger). We subscribe with prop.on(), diff against our own
+    // last write (echo guard), and push the change to the controller in the mode
+    // the air policy dictates. This is the outbound half of the hosted-preview idea.
+    let riveSubs = [];
+    const pushTimers = {};
+    const suppressTrig = new Set();
+    function unsubscribeRive() { riveSubs.forEach((u) => { try { u(); } catch (_) {} }); riveSubs = []; }
+    function subscribeRive() {
+      unsubscribeRive();
+      if (!riveVM) return;
+      Object.entries(mapping).forEach(([key, m]) => {
+        try {
+          if (m.type === "trigger") {
+            const t = riveVM.trigger(key); if (!t || !t.on) return;
+            const cb = () => onRiveTrigger(key);
+            t.on(cb); riveSubs.push(() => { try { t.off && t.off(cb); } catch (_) {} });
+          } else if (m.type !== "color") {
+            const prop = m.type === "number" ? riveVM.number(key)
+                       : m.type === "boolean" ? riveVM.boolean(key)
+                       : riveVM.string(key);
+            if (!prop || !prop.on) return;
+            const cb = () => onRiveValue(key, prop);
+            prop.on(cb); riveSubs.push(() => { try { prop.off && prop.off(cb); } catch (_) {} });
+          }
+        } catch (_) {}
+      });
+      if (riveSubs.length) log("Two-way on: watching " + riveSubs.length + " Rive binding(s) for presenter changes");
+    }
+    function onRiveValue(key, prop) {
+      let v; try { v = prop.value; } catch (_) { return; }
+      if (lastVM[key] === v) return;                    // our own write, echoed back
+      lastVM[key] = v;
+      clearTimeout(pushTimers[key]);                    // throttle (drags fire fast)
+      pushTimers[key] = setTimeout(() => pushRiveKey(key, v), 80);
+    }
+    function pushRiveKey(key, v) {
+      if (!client) return;
+      const { rundownId, itemId } = ctx(); if (!rundownId || !itemId) return;
+      const mode = (air === "live" && onAir) ? "live" : "staged";
+      client.items.setData(rundownId, itemId, { [key]: v }, { mode }).catch(() => {});
+      log("↩ presenter set " + key + " = " + JSON.stringify(v) + " → " + (mode === "live" ? "program" : "preview"));
+    }
+    function onRiveTrigger(key) {
+      if (suppressTrig.has(key) || !client) return;     // we fired it ourselves
+      const { rundownId, itemId } = ctx(); if (!rundownId || !itemId) return;
+      const mode = (air === "live" && onAir) ? "live" : "staged";
+      client.items.trigger(rundownId, itemId, key, mode === "staged" ? { mode: "staged" } : {}).catch(() => {});
+      log("↩ presenter fired " + key + " → " + (mode === "live" ? "program" : "preview"));
+    }
+
+    // ── Inbound: apply controller / other-surface changes onto the canvas ──────
+    // The live SSE stream carries item.updated / item.trigger for every surface
+    // (playlist panel, program, other host viewers). We reflect changes to OUR
+    // item onto the Rive preview, skipping the echoes of our own writes. This is
+    // the inbound half — together with the outbound read-back it's N-way sync.
+    let stream = null;
+    let streamOffs = [];
+    function openStream() {
+      closeStream();
+      if (!client) return;
+      try {
+        stream = client.stream({ onState: (s) => { if (s === "open") log("Live stream connected — inbound sync on"); } });
+        streamOffs.push(stream.on("item.updated", onRemoteItemUpdated));
+        streamOffs.push(stream.on("item.trigger", onRemoteItemTrigger));
+      } catch (e) { log("Live stream failed: " + (e && e.message ? e.message : e), "e"); }
+    }
+    function closeStream() {
+      streamOffs.forEach((o) => { try { o(); } catch (_) {} }); streamOffs = [];
+      if (stream) { try { stream.close(); } catch (_) {} stream = null; }
+    }
+    function eventItemId(d) { return Number(d.itemId != null ? d.itemId : (d.id != null ? d.id : (d.item && d.item.id))); }
+    async function onRemoteItemUpdated(e) {
+      const d = e.data || {};
+      const { rundownId, itemId } = ctx();
+      if (!itemId || eventItemId(d) !== itemId || !riveVM) return;
+      // Prefer inline data on the event; fall back to an authoritative refetch.
+      let data = d.data || (d.item && d.item.data);
+      if (!data || typeof data !== "object") {
+        try { const it = await client.items.get(rundownId, itemId); data = (it && it.data) || {}; } catch (_) { return; }
+      }
+      applyRemoteData(data);
+    }
+    function unwrap(v) { return (v && typeof v === "object" && "value" in v) ? v.value : v; }
+    function applyRemoteData(data) {
+      if (!riveVM) return;
+      let applied = 0;
+      Object.entries(mapping).forEach(([key, m]) => {
+        if (!m || m.type === "trigger" || m.type === "color" || !(key in data)) return;
+        const v = unwrap(data[key]);
+        try {
+          if (m.type === "number") { const nv = Number(v); if (lastVM[key] === nv) return; const p = riveVM.number(key); if (p) { lastVM[key] = nv; p.value = nv; applied++; } }
+          else if (m.type === "boolean") { const bv = (v === true || v === "true" || v === 1 || v === "1"); if (lastVM[key] === bv) return; const p = riveVM.boolean(key); if (p) { lastVM[key] = bv; p.value = bv; applied++; } }
+          else { const sv = String(v); if (lastVM[key] === sv) return; const p = riveVM.string(key); if (p) { lastVM[key] = sv; p.value = sv; applied++; } }
+        } catch (_) {}
+      });
+      if (applied) log("⇣ applied " + applied + " remote change(s) to the Rive preview");
+    }
+    function onRemoteItemTrigger(e) {
+      const d = e.data || {};
+      const { itemId } = ctx();
+      if (!itemId || eventItemId(d) !== itemId || !riveVM) return;
+      const name = d.trigger || d.name || d.triggerName;
+      if (!name || suppressTrig.has(name)) return;      // ignore the echo of our own fire
+      try { const t = riveVM.trigger(name); if (t) { t.trigger(); log("⇣ remote trigger " + name + " on preview"); } } catch (_) {}
     }
     function setPreview(mode) {
       previewMode = mode;
@@ -753,7 +870,9 @@
       riveNote("");
       if (mode === "rive") {
         if (!riveInst || riveShownTemplateId !== currentTemplateId) initRive();
-        else { feedRive(); requestAnimationFrame(riveResize); }
+        else { feedRive(); subscribeRive(); requestAnimationFrame(riveResize); }
+      } else {
+        unsubscribeRive();               // stop pushing presenter changes while on the HTML pitch
       }
     }
     function riveResize() { if (riveInst) { try { riveInst.resizeDrawingSurfaceToCanvas(); } catch (_) {} } }
@@ -850,6 +969,7 @@
         const m = mapping[key];
         const row = t.closest(".maprow"); if (row) row.classList.toggle("unfed", !(m.from || m.action));
         saveMapping(); rebuildBinder();
+        if (previewMode === "rive" && riveVM) subscribeRive();   // watch the new mapping
       });
       els.onAir.addEventListener("change", (e) => {
         onAir = e.target.checked; if (binder) binder.setOnAir(onAir);
