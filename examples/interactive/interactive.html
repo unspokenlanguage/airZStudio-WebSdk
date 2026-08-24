@@ -225,6 +225,9 @@
   var recentPush = {};               // key → ts of our last local push (time-window guard)
   var ECHO_GUARD_MS = 1500;
   var animUntil = 0;                 // while now < this, ignore VM value tweens (a trigger is animating)
+  var sock = null, sockReady = false;             // realtime WS channel to the controller
+  var wsPending = {}, wsFlushRaf = false;         // coalesced per-frame WS batch
+  var httpPending = {}, httpTimer = null;         // low-rate HTTP persistence batch
   var pushTimers = {}, suppressTrig = new Set(), subs = [], stream = null, streamOffs = [];
   var air = CFG.air === "live" ? "live" : "cue";
   var onAir = !!CFG.onAir;
@@ -272,7 +275,7 @@
       await c.auth.login(els.gateUser.value.trim() || "admin", els.gatePass.value);
       client = c; hideGate();
       if (gateResolve) { var r = gateResolve; gateResolve = null; r(c); }
-      else { openStream(); setStatus("live", "ok"); log("Reconnected."); }  // mid-session reauth
+      else { openStream(); openSock(); setStatus("live", "ok"); log("Reconnected."); }  // mid-session reauth
     } catch (err) { els.gateMsg.textContent = "Sign in failed — " + (err && err.message || err); els.gateMsg.className = "gatemsg err"; }
   };
   function ensureClient() {
@@ -283,7 +286,7 @@
     return new Promise(function (resolve) { gateResolve = resolve; });
   }
   // Session expired (401) → drop the client, stop the stream, re-prompt.
-  function reauth() { if (!client && els.gate.style.display === "flex") return; client = null; closeStream(); setStatus("session expired", "err"); showGate("Session expired — sign in again"); }
+  function reauth() { if (!client && els.gate.style.display === "flex") return; client = null; closeStream(); closeSock(); setStatus("session expired", "err"); showGate("Session expired — sign in again"); }
   function handle401(err) {
     var s = (err && err.status) || 0;
     if (s === 401 || /\b401\b|unauthor/i.test(String(err && (err.message || err)))) { reauth(); return true; }
@@ -410,15 +413,40 @@
     pushKey(key, v);
     post("airz:valueChanged", { key: key, value: v, origin: origin || "field" });
   }
+  function wrapVal(type, v) {
+    if (type === "number") return { type: "number", value: Number(v) || 0 };
+    if (type === "boolean") return { type: "boolean", value: !!v };
+    if (type === "color") return { type: "color", value: v };
+    return { type: "string", value: String(v == null ? "" : v) };
+  }
+  // Two channels: the WebSocket streams every move to the controller preview in
+  // realtime (coalesced per animation frame, no HTTP), and a low-rate HTTP batch
+  // persists the value (and drives program per the air policy).
   function pushKey(key, v) {
     if (!client || CFG.itemId == null) return;
     recentPush[key] = Date.now();                 // guard against our own echo
-    clearTimeout(pushTimers[key]);
-    pushTimers[key] = setTimeout(function () {
-      recentPush[key] = Date.now();
-      client.items.setData(CFG.rundownId, CFG.itemId, obj(key, v), { mode: pushMode() }).catch(handle401);
-      log("→ " + key + " = " + JSON.stringify(v) + " · " + (pushMode() === "live" ? "program" : "preview"));
-    }, 40);  // ~25 Hz — keeps a dragged layer feeling live in the controller preview
+    if (sockReady) {
+      wsPending[key] = wrapVal(typeOf(key), v);
+      if (!wsFlushRaf) { wsFlushRaf = true; requestAnimationFrame(flushWs); }
+    }
+    httpPending[key] = v;
+    if (!httpTimer) httpTimer = setTimeout(flushHttp, sockReady ? 250 : 40);
+  }
+  function flushWs() {
+    wsFlushRaf = false;
+    if (!sockReady || !sock) return;
+    var data = wsPending; wsPending = {};
+    if (!Object.keys(data).length) return;
+    try { sock.send(JSON.stringify({ action: "data", mode: pushMode(), data: data })); } catch (_) {}
+  }
+  function flushHttp() {
+    httpTimer = null;
+    if (!client || CFG.itemId == null) return;
+    var batch = httpPending; httpPending = {};
+    var keys = Object.keys(batch); if (!keys.length) return;
+    keys.forEach(function (k) { recentPush[k] = Date.now(); });
+    client.items.setData(CFG.rundownId, CFG.itemId, batch, { mode: pushMode() }).catch(handle401);
+    if (CFG.debug) log("→ " + keys.length + " key(s) · " + (pushMode() === "live" ? "program" : "preview"));
   }
   // Map an incoming trigger name to one of the template's trigger bindings,
   // exact first then fuzzy ("Animate In" ↔ "Animate In trigger").
@@ -533,6 +561,31 @@
     } catch (e) { log("stream failed: " + (e && e.message || e), "e"); }
   }
   function closeStream() { streamOffs.forEach(function (o) { try { o(); } catch (_) {} }); streamOffs = []; if (stream) { try { stream.close(); } catch (_) {} stream = null; } }
+
+  // ── realtime channel: stream binding moves over a WebSocket (low-latency) ──
+  function wsUrl() {
+    var base = CFG.baseUrl || location.origin;
+    return base.replace(/^http/i, "ws").replace(/\/+$/, "").replace(/\/api\/v1$/, "") + "/interactive/ws";
+  }
+  function openSock() {
+    closeSock();
+    if (!client || CFG.itemId == null) return;
+    try {
+      sock = new WebSocket(wsUrl());
+      sock.onopen = function () {
+        try { sock.send(JSON.stringify({ action: "join", rundownId: CFG.rundownId, itemId: CFG.itemId, token: (client.getToken && client.getToken()) || CFG.token })); } catch (_) {}
+      };
+      sock.onmessage = function (ev) {
+        var m; try { m = JSON.parse(ev.data); } catch (_) { return; }
+        if (m.action === "joined") { sockReady = true; log("Realtime channel connected"); }
+        else if (m.action === "data" && m.data) { applyRemoteData(m.data); }   // a co-viewer's move
+        else if (m.action === "error") { log("Realtime: " + m.error, "e"); }
+      };
+      sock.onclose = function () { sockReady = false; };
+      sock.onerror = function () {};
+    } catch (e) { log("Realtime channel failed: " + (e && e.message || e), "e"); }
+  }
+  function closeSock() { sockReady = false; if (sock) { try { sock.close(); } catch (_) {} sock = null; } }
   function evItemId(d) { return Number(d.itemId != null ? d.itemId : (d.id != null ? d.id : (d.item && d.item.id))); }
   async function onRemoteUpdated(e) {
     var d = e.data || {};
@@ -593,7 +646,8 @@
       buildFields();
       refreshAirUI();
       await loadGraphic();
-      openStream();
+      openStream();   // inbound SSE (triggers + coarse data)
+      openSock();     // realtime binding stream (low-latency moves)
     } catch (err) { if (!handle401(err)) { setStatus("error", "err"); log("Boot error: " + (err && err.message || err), "e"); post("airz:error", { message: String(err && err.message || err) }); } }
   }
 
