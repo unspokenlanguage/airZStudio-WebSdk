@@ -199,6 +199,8 @@
   var vals = {};                     // key → current value
   var rive = null, riveVM = null;
   var lastVM = {};                   // echo guard: last value we wrote/pushed
+  var recentPush = {};               // key → ts of our last local push (time-window guard)
+  var ECHO_GUARD_MS = 1500;
   var pushTimers = {}, suppressTrig = new Set(), subs = [], stream = null, streamOffs = [];
   var air = CFG.air === "live" ? "live" : "cue";
   var onAir = !!CFG.onAir;
@@ -368,16 +370,47 @@
   }
   function pushKey(key, v) {
     if (!client || CFG.itemId == null) return;
+    recentPush[key] = Date.now();                 // guard against our own echo
     clearTimeout(pushTimers[key]);
     pushTimers[key] = setTimeout(function () {
+      recentPush[key] = Date.now();
       client.items.setData(CFG.rundownId, CFG.itemId, obj(key, v), { mode: pushMode() }).catch(function () {});
       log("→ " + key + " = " + JSON.stringify(v) + " · " + (pushMode() === "live" ? "program" : "preview"));
     }, 70);
   }
+  // Map an incoming trigger name to one of the template's trigger bindings,
+  // exact first then fuzzy ("Animate In" ↔ "Animate In trigger").
+  function resolveTriggerKey(name) {
+    var lc = String(name).toLowerCase();
+    var exact = bindings.find(function (x) { return x.type === "trigger" && x.key === name; });
+    if (exact) return exact.key;
+    var fuzzy = bindings.find(function (x) { return x.type === "trigger" && (x.key.toLowerCase().indexOf(lc) >= 0 || lc.indexOf(x.key.toLowerCase()) >= 0); });
+    return fuzzy ? fuzzy.key : null;
+  }
+  // Fire BOTH mechanisms so the graphic animates however it's authored:
+  //  • a view-model data-binding trigger   • a state-machine trigger input
+  function fireLocalAnim(name) {
+    var fired = false, key = resolveTriggerKey(name);
+    if (key && riveVM) { try { var t = riveVM.trigger(key); if (t) { t.trigger(); fired = true; } } catch (_) {} }
+    try {
+      (rive && rive.stateMachineNames || []).forEach(function (sm) {
+        var inputs = []; try { inputs = rive.stateMachineInputs(sm) || []; } catch (_) {}
+        inputs.forEach(function (inp) {
+          if (inp && inp.name && typeof inp.fire === "function" &&
+              (inp.name === name || inp.name.toLowerCase() === String(name).toLowerCase() ||
+               (key && inp.name.toLowerCase() === key.toLowerCase()))) {
+            try { inp.fire(); fired = true; } catch (_) {}
+          }
+        });
+      });
+    } catch (_) {}
+    return fired;
+  }
   function fireTrigger(name, origin) {
-    if (viewOnly || !riveVM) return;
-    try { suppressTrig.add(name); setTimeout(function () { suppressTrig.delete(name); }, 250); var t = riveVM.trigger(name); if (t) t.trigger(); } catch (_) {}
-    if (client && CFG.itemId != null) {
+    if (viewOnly) return;
+    suppressTrig.add(name); setTimeout(function () { suppressTrig.delete(name); }, 400);
+    fireLocalAnim(name);                          // animate our own canvas
+    if (client && CFG.itemId != null) {          // and fire on the controller
       client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(function () {});
     }
     log("▶ trigger " + name + " · " + (pushMode() === "live" ? "program" : "preview"));
@@ -455,6 +488,7 @@
     var applied = 0;
     bindings.forEach(function (b) {
       if (b.type === "trigger" || b.type === "image" || !(b.key in data)) return;
+      if (Date.now() - (recentPush[b.key] || 0) < ECHO_GUARD_MS) return;   // we just changed it locally
       var v = unwrap(data[b.key]);
       if (b.type === "number") v = Number(v);
       else if (b.type === "boolean") v = (v === true || v === "true" || v === 1 || v === "1");
@@ -467,10 +501,13 @@
   }
   function onRemoteTrigger(e) {
     var d = e.data || {};
-    if (CFG.itemId == null || evItemId(d) !== CFG.itemId || !riveVM) return;
+    var eid = evItemId(d);
+    if (CFG.itemId != null && !isNaN(eid) && eid !== CFG.itemId) return;   // scoped; proceed if itemId unknown
     var name = d.trigger || d.name || d.triggerName;
     if (!name || suppressTrig.has(name)) return;
-    try { var t = riveVM.trigger(name); if (t) { t.trigger(); log("⇣ remote trigger " + name); post("airz:triggered", { name: name, origin: "remote" }); } } catch (_) {}
+    if (fireLocalAnim(name)) { log("⇣ remote trigger " + name); post("airz:triggered", { name: name, origin: "remote" }); }
+    else log("⇣ remote trigger '" + name + "' — no matching VM trigger / SM input (have: " +
+      bindings.filter(function (b) { return b.type === "trigger"; }).map(function (b) { return b.key; }).join(", ") + ")", "e");
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
