@@ -101,9 +101,14 @@
   .lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
   .log { font:11px/1.5 ui-monospace,Menlo,Consolas,monospace; color:var(--muted); max-height:120px; overflow:auto; }
   .log .e { color:var(--danger); }
-  .login { padding:16px; display:flex; flex-direction:column; gap:8px; max-width:320px; }
   .note { padding:12px 16px; color:var(--muted); font-size:13px; }
   .hidden { display:none !important; }
+  .gate { position:fixed; inset:0; background:rgba(6,6,10,.86); display:flex; align-items:center; justify-content:center; z-index:50; }
+  .gatecard { background:#16171d; border:1px solid var(--border); border-radius:14px; padding:22px; width:340px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .gatecard label { margin:10px 0 3px; }
+  .gatecard input { width:100%; }
+  .gatemsg { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .gatemsg.err { color:var(--danger); }
 </style>
 </head>
 <body>
@@ -121,14 +126,6 @@
     <div class="stage"><canvas id="canvas" width="1280" height="720"></canvas></div>
 
     <aside class="side">
-      <!-- dev-only manual login (hidden when a token is supplied) -->
-      <div class="sec login hidden" id="loginBox">
-        <h2>Connect (dev)</h2>
-        <input id="lgBase" type="text" placeholder="http://localhost:3467" />
-        <div class="row"><input id="lgUser" type="text" placeholder="admin" style="flex:1" /><input id="lgPass" type="password" placeholder="password" style="flex:1" /></div>
-        <button id="lgBtn" class="on">Connect</button>
-      </div>
-
       <div class="sec">
         <h2>Air policy</h2>
         <div class="row">
@@ -153,6 +150,21 @@
       </div>
     </aside>
   </main>
+
+  <!-- Sign-in gate: shown when there is no token (dev), or on session expiry (401).
+       Hosted with an injected token, it never appears. -->
+  <div id="gate" class="gate" style="display:none">
+    <div class="gatecard">
+      <h2 style="margin:0 0 4px;font-size:15px">Sign in to preview</h2>
+      <div id="gateMsg" class="gatemsg"></div>
+      <label>Controller URL</label><input id="gateBase" type="text" />
+      <div class="row" style="gap:8px">
+        <div style="flex:1"><label>User</label><input id="gateUser" type="text" value="admin" /></div>
+        <div style="flex:1"><label>Password</label><input id="gatePass" type="password" /></div>
+      </div>
+      <button id="gateBtn" class="on" style="margin-top:10px;width:100%">Connect</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -198,7 +210,9 @@
   var els = {
     target: $("target"), status: $("status"), airChip: $("airChip"), onAirBtn: $("onAirBtn"),
     canvas: $("canvas"), fields: $("fields"), triggers: $("triggers"), log: $("log"),
-    airSel: $("airSel"), loginBox: $("loginBox"),
+    airSel: $("airSel"),
+    gate: $("gate"), gateBase: $("gateBase"), gateUser: $("gateUser"), gatePass: $("gatePass"),
+    gateBtn: $("gateBtn"), gateMsg: $("gateMsg"),
   };
   var Airz = null, client = null, item = null, templateId = null;
   var bindings = [];                 // [{key,type}]
@@ -244,22 +258,32 @@
   });
 
   // ── connect ───────────────────────────────────────────────────────────────
-  async function ensureClient() {
-    if (client) return client;
-    if (CFG.token) { client = Airz.createClient({ baseUrl: CFG.baseUrl, token: CFG.token }); return client; }
-    // dev: manual login
-    els.loginBox.classList.remove("hidden");
-    setStatus("login required", "err");
-    return new Promise(function (resolve) {
-      $("lgBase").value = CFG.baseUrl;
-      $("lgBtn").onclick = async function () {
-        try {
-          var c = Airz.createClient({ baseUrl: $("lgBase").value.trim() || CFG.baseUrl });
-          await c.auth.login($("lgUser").value.trim() || "admin", $("lgPass").value);
-          client = c; els.loginBox.classList.add("hidden"); resolve(c);
-        } catch (err) { setStatus("login failed", "err"); log("Login failed: " + (err && err.message || err), "e"); }
-      };
-    });
+  var gateResolve = null;
+  function showGate(msg) { els.gateBase.value = CFG.baseUrl; els.gateMsg.textContent = msg || ""; els.gateMsg.className = "gatemsg"; els.gate.style.display = "flex"; }
+  function hideGate() { els.gate.style.display = "none"; }
+  els.gateBtn.onclick = async function () {
+    try {
+      els.gateMsg.textContent = "Connecting…"; els.gateMsg.className = "gatemsg";
+      var c = Airz.createClient({ baseUrl: els.gateBase.value.trim() || CFG.baseUrl });
+      await c.auth.login(els.gateUser.value.trim() || "admin", els.gatePass.value);
+      client = c; hideGate();
+      if (gateResolve) { var r = gateResolve; gateResolve = null; r(c); }
+      else { openStream(); setStatus("live", "ok"); log("Reconnected."); }  // mid-session reauth
+    } catch (err) { els.gateMsg.textContent = "Sign in failed — " + (err && err.message || err); els.gateMsg.className = "gatemsg err"; }
+  };
+  function ensureClient() {
+    if (client) return Promise.resolve(client);
+    if (CFG.token) { client = Airz.createClient({ baseUrl: CFG.baseUrl, token: CFG.token }); return Promise.resolve(client); }
+    showGate("");
+    setStatus("sign in", "err");
+    return new Promise(function (resolve) { gateResolve = resolve; });
+  }
+  // Session expired (401) → drop the client, stop the stream, re-prompt.
+  function reauth() { if (!client && els.gate.style.display === "flex") return; client = null; closeStream(); setStatus("session expired", "err"); showGate("Session expired — sign in again"); }
+  function handle401(err) {
+    var s = (err && err.status) || 0;
+    if (s === 401 || /\b401\b|unauthor/i.test(String(err && (err.message || err)))) { reauth(); return true; }
+    return false;
   }
 
   // ── rive runtime + graphic ────────────────────────────────────────────────
@@ -391,7 +415,7 @@
     clearTimeout(pushTimers[key]);
     pushTimers[key] = setTimeout(function () {
       recentPush[key] = Date.now();
-      client.items.setData(CFG.rundownId, CFG.itemId, obj(key, v), { mode: pushMode() }).catch(function () {});
+      client.items.setData(CFG.rundownId, CFG.itemId, obj(key, v), { mode: pushMode() }).catch(handle401);
       log("→ " + key + " = " + JSON.stringify(v) + " · " + (pushMode() === "live" ? "program" : "preview"));
     }, 70);
   }
@@ -434,7 +458,7 @@
     suppressTrig.add(name); setTimeout(function () { suppressTrig.delete(name); }, 400);
     fireLocalAnim(name);                          // animate our own canvas
     if (client && CFG.itemId != null) {          // and fire on the controller
-      client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(function () {});
+      client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(handle401);
     }
     log("▶ trigger " + name + " · " + (pushMode() === "live" ? "program" : "preview"));
     post("airz:triggered", { name: name, origin: origin || "field" });
@@ -480,7 +504,7 @@
   }
   function onVMTrigger(name) {
     if (suppressTrig.has(name)) return;
-    if (client && CFG.itemId != null) client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(function () {});
+    if (client && CFG.itemId != null) client.items.trigger(CFG.rundownId, CFG.itemId, name, pushMode() === "staged" ? { mode: "staged" } : {}).catch(handle401);
     log("↩ presenter fired " + name);
     post("airz:triggered", { name: name, origin: "presenter" });
   }
@@ -507,7 +531,7 @@
     var d = e.data || {};
     if (CFG.itemId == null || evItemId(d) !== CFG.itemId) return;
     var data = d.data || (d.item && d.item.data);
-    if (!data || typeof data !== "object") { try { var it = await client.items.get(CFG.rundownId, CFG.itemId); data = it && it.data || {}; } catch (_) { return; } }
+    if (!data || typeof data !== "object") { try { var it = await client.items.get(CFG.rundownId, CFG.itemId); data = it && it.data || {}; } catch (e2) { handle401(e2); return; } }
     var applied = 0;
     bindings.forEach(function (b) {
       if (b.type === "trigger" || b.type === "image" || !(b.key in data)) return;
@@ -563,7 +587,7 @@
       refreshAirUI();
       await loadGraphic();
       openStream();
-    } catch (err) { setStatus("error", "err"); log("Boot error: " + (err && err.message || err), "e"); post("airz:error", { message: String(err && err.message || err) }); }
+    } catch (err) { if (!handle401(err)) { setStatus("error", "err"); log("Boot error: " + (err && err.message || err), "e"); post("airz:error", { message: String(err && err.message || err) }); } }
   }
 
   // wire local controls (control role only)

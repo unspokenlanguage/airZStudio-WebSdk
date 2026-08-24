@@ -30,8 +30,8 @@ Build the SDK global once (`cd sdk && npm run build`), serve the repo root, and 
 ```powershell
 npx serve .
 ```
-- `…/examples/interactive/interactive.html?baseUrl=http://localhost:3467&rundownId=12&itemId=340` — the real page: **just the `.riv`**, canvas-only.
-- add **`&debug=1`** to show the inspector panel (dev login, air policy, bindings, triggers, raw-SSE log).
+- `…/examples/interactive/interactive.html?baseUrl=http://localhost:3467&rundownId=12&itemId=340` — the real page: **just the `.riv`**, canvas-only. With no token it shows a centered **sign-in gate**; hosted with an injected token the gate never appears. An expired token (401) re-opens the gate instead of failing silently.
+- add **`&debug=1`** to show the inspector panel (air policy, bindings, triggers, raw-SSE log).
 - `…/examples/interactive/embed-demo.html` — the embedding harness.
 
 ## Configuration (target + auth)
