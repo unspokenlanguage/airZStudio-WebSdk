@@ -749,7 +749,8 @@
       if (!key) return;
       try {
         suppressTrig.add(key);                                  // don't mirror our own fire back
-        setTimeout(() => suppressTrig.delete(key), 250);
+        setTimeout(() => suppressTrig.delete(key), 400);
+        animUntil = Date.now() + 1500;
         const t = riveVM.trigger(key); if (t) t.trigger();
       } catch (_) {}
     }
@@ -762,6 +763,7 @@
     let riveSubs = [];
     const pushTimers = {};
     const suppressTrig = new Set();
+    let animUntil = 0;                 // while now < this, ignore VM value tweens (a trigger is animating)
     function unsubscribeRive() { riveSubs.forEach((u) => { try { u(); } catch (_) {} }); riveSubs = []; }
     function subscribeRive() {
       unsubscribeRive();
@@ -785,6 +787,7 @@
       if (riveSubs.length) log("Two-way on: watching " + riveSubs.length + " Rive binding(s) for presenter changes");
     }
     function onRiveValue(key, prop) {
+      if (Date.now() < animUntil) return;               // a trigger is animating — its tweens aren't edits
       let v; try { v = prop.value; } catch (_) { return; }
       if (lastVM[key] === v) return;                    // our own write, echoed back
       lastVM[key] = v;
@@ -859,7 +862,13 @@
       if (!itemId || eventItemId(d) !== itemId || !riveVM) return;
       const name = d.trigger || d.name || d.triggerName;
       if (!name || suppressTrig.has(name)) return;      // ignore the echo of our own fire
-      try { const t = riveVM.trigger(name); if (t) { t.trigger(); log("⇣ remote trigger " + name + " on preview"); } } catch (_) {}
+      try {
+        // Guard our OWN observer: firing this notifies onRiveTrigger, which would
+        // re-push it to the controller and loop (the trigger_offline flood).
+        suppressTrig.add(name); setTimeout(() => suppressTrig.delete(name), 400);
+        animUntil = Date.now() + 1500;
+        const t = riveVM.trigger(name); if (t) { t.trigger(); log("⇣ remote trigger " + name + " on preview"); }
+      } catch (_) {}
     }
     function setPreview(mode) {
       previewMode = mode;
