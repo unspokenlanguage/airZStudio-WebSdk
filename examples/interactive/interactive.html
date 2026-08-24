@@ -180,6 +180,7 @@
       riveWasmUrl: inj.riveWasmUrl || q.get("riveWasmUrl") || "/rundown/rive.wasm",
       air: inj.air || q.get("air") || "cue",
       onAir: inj.onAir != null ? !!inj.onAir : q.get("onAir") === "1",
+      debug: inj.debug != null ? !!inj.debug : q.get("debug") === "1",
     };
   }
   var CFG = readConfig();
@@ -436,6 +437,12 @@
       stream = client.stream({ onState: function (s) { if (s === "open") log("live stream connected"); } });
       streamOffs.push(stream.on("item.updated", onRemoteUpdated));
       streamOffs.push(stream.on("item.trigger", onRemoteTrigger));
+      if (CFG.debug) {
+        streamOffs.push(stream.on("*", function (e) {
+          log("SSE " + e.event + " " + JSON.stringify(e.data).slice(0, 200), "e");
+          try { console.log("[airz SSE]", e.event, e.data); } catch (_) {}
+        }));
+      }
     } catch (e) { log("stream failed: " + (e && e.message || e), "e"); }
   }
   function closeStream() { streamOffs.forEach(function (o) { try { o(); } catch (_) {} }); streamOffs = []; if (stream) { try { stream.close(); } catch (_) {} stream = null; } }
