@@ -305,7 +305,6 @@
         }
         try { rive.resizeDrawingSurfaceToCanvas(); } catch (_) {}
         riveVM = rive.viewModelInstance || null;
-        riveShownTemplateId = currentTemplateId;
         applyValues();          // seed from item.data
         subscribe();            // outbound read-back
         // Show the on-state — fire the first trigger (e.g. Animate In), like /rundown.
