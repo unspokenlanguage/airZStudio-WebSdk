@@ -34,11 +34,13 @@
                      {type:'airz:error', message}
 -->
 <script>
-  // Load the SDK global (sibling when hosted, repo dist for dev). Exposes window.Airz.
+  // Load the SDK global. Exposes window.Airz. Hosted (controller injects __AIRZ__)
+  // → sibling first; dev (no injected config) → repo dist first, so no stray 404.
   window.__airzSdk = new Promise(function (resolve, reject) {
-    var srcs = [(window.__AIRZ__ && window.__AIRZ__.sdkUrl) || null,
-                "airz-sdk.global.min.js",
-                "../../sdk/dist/airz-sdk.global.min.js"].filter(Boolean);
+    var inj = window.__AIRZ__;
+    var srcs = inj && inj.sdkUrl ? [inj.sdkUrl]
+      : inj ? ["airz-sdk.global.min.js", "../../sdk/dist/airz-sdk.global.min.js"]
+            : ["../../sdk/dist/airz-sdk.global.min.js", "airz-sdk.global.min.js"];
     (function next(i) {
       if (i >= srcs.length) { reject(new Error("SDK global not found")); return; }
       var s = document.createElement("script");
