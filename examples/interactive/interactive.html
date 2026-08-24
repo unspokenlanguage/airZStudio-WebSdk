@@ -396,23 +396,26 @@
   // Fire BOTH mechanisms so the graphic animates however it's authored:
   //  • a view-model data-binding trigger   • a state-machine trigger input
   function fireLocalAnim(name) {
-    var fired = false, key = resolveTriggerKey(name);
-    if (key && riveVM) { try { var t = riveVM.trigger(key); if (t) { t.trigger(); fired = true; } } catch (_) {} }
+    var fired = false, key = resolveTriggerKey(name), dbg = [];
+    // view-model data-binding trigger
+    if (key && riveVM) { try { var t = riveVM.trigger(key); if (t) { t.trigger(); fired = true; dbg.push("vm:" + key); } } catch (_) {} }
+    // state-machine trigger input (this is what "Animate In" usually is)
     try {
-      (rive && rive.stateMachineNames || []).forEach(function (sm) {
+      ((rive && rive.stateMachineNames) || []).forEach(function (sm) {
         var inputs = []; try { inputs = rive.stateMachineInputs(sm) || []; } catch (_) {}
+        dbg.push(sm + "→[" + inputs.map(function (i) { return i.name; }).join(",") + "]");
         inputs.forEach(function (inp) {
           if (inp && inp.name && typeof inp.fire === "function" &&
               (inp.name === name || inp.name.toLowerCase() === String(name).toLowerCase() ||
                (key && inp.name.toLowerCase() === key.toLowerCase()))) {
-            try { inp.fire(); fired = true; } catch (_) {}
+            try { inp.fire(); fired = true; dbg.push("smi:" + inp.name); } catch (_) {}
           }
         });
       });
     } catch (_) {}
-    // Rive pauses the render loop once the state machine settles; resume it so the
-    // triggered animation actually plays on the canvas.
-    if (fired) { try { var sms = (rive && rive.stateMachineNames) || []; if (sms.length) rive.play(sms[0]); else rive.play(); } catch (_) {} }
+    // NOTE: do NOT rive.play(sm) here — replaying a state machine can reset it to
+    // entry and discard the trigger. input.fire() re-renders on its own.
+    if (CFG.debug) log("fire '" + name + "' → " + (fired ? "OK" : "MISS") + " · " + dbg.join(" · "), fired ? null : "e");
     return fired;
   }
   function fireTrigger(name, origin) {
