@@ -13,6 +13,9 @@ release per customer; apps are hosted separately and just hit the API.
 npm install && npm run build:libs   # both packages
 npm run dev:2023   
 
+
+html example -> npx serve . in root
+
 ## Layout
 
 | Path | What |

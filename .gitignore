@@ -4,6 +4,7 @@ dist/
 .DS_Store
 .env
 .env.local
+.idea/
 
 # Raw election-data dumps & scratch (kept local, not part of the example)
 *.zip

@@ -17,7 +17,7 @@ import {
 } from "@airz/rundown-sdk";
 import { AirzConfigurator } from "@airz/config-ui";
 import { STARTER_CONFIG, PANEL_CATALOG } from "./starterConfig.js";
-import { useLiveElectionData, PARTIES_META } from "./utils/simulator.js";
+import { useElectionSim, PARTIES_META } from "./utils/simulator.js";
 import { CityResults } from "./components/CityResults.js";
 import { PresidencyTicker } from "./components/PresidencyTicker.js";
 import { ResultsList } from "./components/ResultsList.js";
@@ -43,7 +43,9 @@ export function App() {
   const [err, setErr] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
 
-  const liveData = useLiveElectionData();
+  const sim = useElectionSim();
+  const liveData = sim.data;
+  const [simMinutes, setSimMinutes] = useState<number>(15);
 
   // Selectors State (driven by AirzConfigurator mappings)
   const [selectors, setSelectors] = useState<Record<string, string>>({
@@ -503,6 +505,37 @@ export function App() {
         <div style={S.leftSidebar}>
           <div style={S.controlPanel}>
             <h3 style={S.h3}>Controls</h3>
+
+            {/* Simulation: opens boxes from 0% and reaches the real final result
+                over the chosen number of minutes. */}
+            <label style={S.label}>Simulation length (minutes)</label>
+            <input
+              style={S.input}
+              type="number"
+              min={1}
+              step={1}
+              value={simMinutes}
+              onChange={(e) => setSimMinutes(Math.max(1, Number(e.target.value) || 1))}
+              disabled={sim.running}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button
+                style={{ ...S.btn, flex: 1, margin: 0 }}
+                onClick={() => sim.start(simMinutes)}
+              >
+                {sim.running ? `Running… %${(sim.progress * 100).toFixed(0)}` : "▶ Start simulation"}
+              </button>
+              <button
+                style={{ ...S.btn, width: 84, margin: 0, background: "#2a2a35" }}
+                onClick={sim.reset}
+              >
+                Reset
+              </button>
+            </div>
+            <div style={{ height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, margin: "8px 0 16px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${sim.progress * 100}%`, background: "#39d98a", transition: "width 0.4s ease" }} />
+            </div>
+
             <label style={S.label}>City (syncs with controller)</label>
             <select
               style={S.input}

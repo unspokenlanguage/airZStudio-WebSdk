@@ -18,7 +18,8 @@ import candidatesData from "./data/candidates2023.json";
 import ilceBolgeData from "./data/ilce_bolge.json";
 
 const THRESHOLD_PCT = 7;
-const CALLED_AT = 99.5; // a province's seats are allocated once ~fully counted
+const CALLED_AT = 10; // a province starts allocating (projected) seats once ~10% in,
+                      // so the parliament fills live and firms up as the count grows.
 
 interface Bolge {
   cityId: string;

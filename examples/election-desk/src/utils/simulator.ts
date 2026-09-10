@@ -56,6 +56,28 @@ const CITY_TARGETS: CityTarget[] = Object.entries(realData.cities).map(([id, c]:
   })),
 }));
 
+// Per-city reveal bias in [-1, 1] from its Cumhur (People's Alliance) lean.
+// Cumhur-heavy provinces report AHEAD of the national count and other provinces
+// BEHIND it, so the presidency / party %s skew early (Erdoğan high) and CONVERGE
+// to the real final result — the way a live election night actually moves.
+const CITY_BIAS: Record<string, number> = (() => {
+  const share: Record<string, number> = {};
+  for (const c of CITY_TARGETS) {
+    let cumhur = 0, tot = 0;
+    for (const d of c.districts)
+      for (const [p, v] of Object.entries(d.votes)) {
+        tot += v;
+        if (PARTY_ALLIANCE[p] === "cumhur") cumhur += v;
+      }
+    share[c.id] = tot > 0 ? cumhur / tot : 0;
+  }
+  const vals = Object.values(share);
+  const min = Math.min(...vals), span = (Math.max(...vals) - min) || 1;
+  const bias: Record<string, number> = {};
+  for (const id of Object.keys(share)) bias[id] = 2 * (share[id] - min) / span - 1;
+  return bias;
+})();
+
 // National real alliance totals → per-candidate factor so the alliance-proxy sums
 // to the candidate's real presidential total at 100% counted.
 const NAT_ALLIANCE_TOTAL: Record<string, number> = {};
@@ -176,26 +198,83 @@ function buildSnapshot(rates: Record<string, Record<string, number>>): LiveElect
 
 export const generateInitialData = (): LiveElectionData => buildSnapshot({});
 
-export function useLiveElectionData() {
-  const ratesRef = useRef<Record<string, Record<string, number>>>({});
+export interface ElectionSim {
+  data: LiveElectionData;
+  running: boolean;
+  /** 0..1 fraction of the run elapsed (1 = final results). */
+  progress: number;
+  /** Start (or restart) a run that reaches 100% counted over `minutes`. */
+  start: (minutes: number) => void;
+  reset: () => void;
+}
+
+// Deterministic count: every district opens from 0% and reaches 100% by the end of
+// the run, but each starts reporting at a different point (a per-district offset),
+// so results trickle in then flood — and the regional %s shift on the way to the
+// real final result. Set the duration; press Start.
+export function useElectionSim(): ElectionSim {
   const [data, setData] = useState<LiveElectionData>(() => generateInitialData());
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const startRef = useRef(0);
+  const durRef = useRef(0);
+  const offsetsRef = useRef<Record<string, Record<string, number>>>({});
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const rates = ratesRef.current;
-      // Open a random subset of cities' districts a little more each tick.
-      const cityPool = [...CITY_TARGETS].sort(() => 0.5 - Math.random()).slice(0, 20);
-      for (const city of cityPool) {
-        rates[city.id] ??= {};
-        for (const d of city.districts) {
-          const cur = rates[city.id][d.id] ?? 0;
-          if (cur < 100) rates[city.id][d.id] = Math.min(100, cur + Math.random() * 6);
-        }
+  const stop = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setRunning(false);
+  };
+
+  const ratesFor = (frac: number): Record<string, Record<string, number>> => {
+    const rates: Record<string, Record<string, number>> = {};
+    const jit = offsetsRef.current;
+    const wobble = frac * (1 - frac); // 0 at both ends, peaks mid-count
+    for (const city of CITY_TARGETS) {
+      rates[city.id] = {};
+      // Systematic, lean-based reveal: this is what makes the %s shift (a random
+      // reveal averages out to the final mix). The city runs ahead/behind the
+      // national count by its Cumhur lean; a tiny per-district jitter adds life.
+      const cityLocal = Math.max(0, Math.min(1, frac + wobble * (CITY_BIAS[city.id] ?? 0)));
+      for (const d of city.districts) {
+        const j = jit[city.id]?.[d.id] ?? 0;                            // -1..1 per district
+        const local = Math.max(0, Math.min(1, cityLocal + wobble * j * 0.25));
+        rates[city.id][d.id] = local * 100;
       }
-      setData(buildSnapshot(rates));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+    }
+    return rates;
+  };
 
-  return data;
+  const start = (minutes: number) => {
+    stop();
+    // Fresh staggered reveal offsets for this run.
+    const offs: Record<string, Record<string, number>> = {};
+    for (const city of CITY_TARGETS) {
+      offs[city.id] = {};
+      for (const d of city.districts) offs[city.id][d.id] = Math.random() * 2 - 1; // -1..1 reveal wobble
+    }
+    offsetsRef.current = offs;
+    startRef.current = Date.now();
+    durRef.current = Math.max(1000, minutes * 60000);
+    setRunning(true);
+    const tick = () => {
+      const frac = durRef.current > 0 ? Math.min(1, (Date.now() - startRef.current) / durRef.current) : 1;
+      setProgress(frac);
+      setData(buildSnapshot(ratesFor(frac)));
+      if (frac >= 1) stop();
+    };
+    timerRef.current = setInterval(tick, 500);
+    tick();
+  };
+
+  const reset = () => {
+    stop();
+    setProgress(0);
+    offsetsRef.current = {};
+    setData(generateInitialData());
+  };
+
+  useEffect(() => () => stop(), []);
+
+  return { data, running, progress, start, reset };
 }

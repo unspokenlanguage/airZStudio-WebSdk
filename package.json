@@ -13,6 +13,7 @@
     "build:config-ui": "npm run build --workspace @airz/config-ui",
     "build:libs": "npm run build:sdk && npm run build:config-ui",
     "dev:election": "npm run dev --workspace election-desk",
-    "dev:2023": "npm run dev --workspace election-2023"
+    "dev:2023": "npm run dev --workspace election-2023",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File ./run-examples.ps1"
   }
 }
