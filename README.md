@@ -30,6 +30,8 @@ html example -> npx serve . in root
 | [`packages/config-ui/`](packages/config-ui) | `@airz/config-ui` — mountable `<AirzConfigurator>` overlay to configure the SDK visually. |
 | [`examples/election-desk/`](examples/election-desk) | React reference app — single-item data desk. |
 | [`examples/election-2023/`](examples/election-2023) | React reference app — visual config overlay, general ticker + city → county (ilçe), images, live City-Code control. |
+| [`examples/lineup-desk/`](examples/lineup-desk) | Plain HTML reference app — soccer starting-XI control desk with Rive/HTML preview. |
+| [`examples/premiere_league_scoreboard/`](examples/premiere_league_scoreboard) | Plain HTML reference app — Premier League soccer scoreboard desk with scores, match timer, stoppage time, possession & shots statistics. |
 
 ## Quick start
 

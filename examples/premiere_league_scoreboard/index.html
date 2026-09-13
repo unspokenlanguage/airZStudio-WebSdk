@@ -1,0 +1,3490 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>airZ · Premier League Scoreboard Desk</title>
+
+  <!--
+    OPTION C — the airZ SDK as a single browser global.
+    No bundler, no Vite, no import maps. Single script tag loading window.Airz.
+    Served statically over HTTP: npx serve .
+  -->
+  <script src="../../sdk/dist/airz-sdk.global.min.js"></script>
+
+  <!-- Google Fonts: Outfit & Space Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: rgba(20, 22, 30, 0.78);
+      --panel-solid: #14161e;
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f8;
+      --muted: #8b92a2;
+      --pl-purple: #38003c;
+      --pl-neon: #00ff87;
+      --pl-cyan: #04f5ff;
+      --pl-magenta: #e90052;
+      --pl-yellow: #ffeb3b;
+      --accent: var(--pl-neon);
+      --accent2: var(--pl-cyan);
+      --danger: #ff4757;
+      --success: #2ed573;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(1400px 800px at 15% -10%, #1e1333, #0d0f17 50%, var(--bg) 100%);
+      color: var(--text);
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(12, 14, 20, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--pl-purple), #57025e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(56, 0, 60, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      flex-shrink: 0;
+    }
+    .brand-badge svg { width: 24px; height: 24px; fill: var(--pl-neon); }
+    header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header .tag {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+    }
+    header .spacer { flex: 1; }
+    #status {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--panel-border);
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    #status.ok {
+      color: var(--pl-neon);
+      border-color: rgba(0, 255, 135, 0.4);
+      background: rgba(0, 255, 135, 0.08);
+    }
+    #status.ok::before {
+      background: var(--pl-neon);
+      box-shadow: 0 0 8px var(--pl-neon);
+    }
+    #status.err {
+      color: var(--danger);
+      border-color: rgba(255, 71, 87, 0.4);
+      background: rgba(255, 71, 87, 0.08);
+    }
+    #status.err::before { background: var(--danger); }
+
+    /* ── Top Connection Bar ── */
+    .conn-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px;
+      background: rgba(16, 18, 25, 0.6);
+      border-bottom: 1px solid var(--panel-border);
+      font-size: 12px;
+    }
+    .conn-group { display: flex; align-items: center; gap: 8px; }
+    .conn-bar label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .conn-bar input, .conn-bar select {
+      padding: 6px 10px;
+      font-size: 12px;
+      height: 32px;
+      width: auto;
+    }
+    .conn-bar #baseUrl { width: 180px; }
+    .conn-bar #username { width: 100px; }
+    .conn-bar #password { width: 90px; }
+    .conn-bar #rundownSel { min-width: 170px; max-width: 220px; }
+    .conn-bar #itemSel { min-width: 180px; max-width: 240px; }
+
+    /* ── Main Grid Layout ── */
+    main {
+      display: grid;
+      grid-template-columns: minmax(460px, 1.15fr) minmax(480px, 1.35fr);
+      gap: 20px;
+      padding: 20px 24px;
+      align-items: start;
+    }
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+      margin-bottom: 18px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .card-header h2 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #b0b7c7;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-header h2 .icon { font-size: 15px; }
+
+    /* ── Form Inputs ── */
+    label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin: 8px 0 4px;
+      font-weight: 600;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      background: #0f1118;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--pl-neon);
+      box-shadow: 0 0 0 2px rgba(0, 255, 135, 0.15);
+    }
+    input[type="color"] {
+      padding: 2px 4px;
+      height: 32px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+
+    .btnrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      background: #1e212d;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    button:hover {
+      background: #282c3c;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    button:active { transform: scale(0.98); }
+    button.primary {
+      background: var(--pl-neon);
+      color: #032014;
+      border-color: transparent;
+      font-weight: 700;
+    }
+    button.primary:hover {
+      background: #1aff94;
+      box-shadow: 0 0 16px rgba(0, 255, 135, 0.35);
+    }
+    button.take {
+      background: linear-gradient(135deg, #ff9f1c, #ff7800);
+      color: #1a0d00;
+      border-color: transparent;
+      font-weight: 700;
+    }
+    button.take:hover { box-shadow: 0 0 16px rgba(255, 159, 28, 0.4); }
+    button.danger {
+      background: rgba(255, 71, 87, 0.15);
+      color: #ff6b81;
+      border-color: rgba(255, 71, 87, 0.3);
+    }
+    button.danger:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+    button.success {
+      background: rgba(46, 213, 115, 0.15);
+      color: #2ed573;
+      border-color: rgba(46, 213, 115, 0.3);
+    }
+    button.success:hover {
+      background: var(--success);
+      color: #052010;
+    }
+    button.ghost {
+      background: transparent;
+      border-color: var(--panel-border);
+    }
+    button.ghost:hover { background: rgba(255, 255, 255, 0.05); }
+
+    /* ── Segment Buttons ── */
+    .seg { display: flex; gap: 4px; background: rgba(0, 0, 0, 0.25); padding: 3px; border-radius: 8px; border: 1px solid var(--panel-border); }
+    .segbtn { padding: 4px 10px; font-size: 11px; border: none; background: transparent; border-radius: 6px; }
+    .segbtn.on { background: var(--pl-neon); color: #021a10; font-weight: 700; }
+
+    /* ── Switch Toggle ── */
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .switch input { width: auto; margin: 0; cursor: pointer; accent-color: var(--pl-neon); }
+    .switch.on-air-active {
+      background: rgba(255, 71, 87, 0.18);
+      border: 1px solid rgba(255, 71, 87, 0.6);
+      color: #ff6b81 !important;
+      box-shadow: 0 0 14px rgba(255, 71, 87, 0.4);
+      animation: pulseLive 1.4s infinite alternate;
+    }
+    @keyframes pulseLive {
+      from { box-shadow: 0 0 8px rgba(255, 71, 87, 0.3); }
+      to { box-shadow: 0 0 18px rgba(255, 71, 87, 0.7); }
+    }
+
+    /* ── Preset Chips ── */
+    .presets-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .preset-chip {
+      padding: 6px 12px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      color: #c9cedc;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-chip:hover {
+      border-color: var(--pl-cyan);
+      color: #fff;
+      background: rgba(4, 245, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    /* ── Team & Score Control Cards ── */
+    .teams-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .team-box {
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 12px;
+      position: relative;
+    }
+    .team-box-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .team-badge-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .score-stepper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .score-stepper button {
+      width: 42px;
+      height: 42px;
+      font-size: 20px;
+      font-weight: 800;
+      padding: 0;
+      border-radius: 8px;
+    }
+    .score-stepper input {
+      text-align: center;
+      font-size: 26px;
+      font-weight: 800;
+      height: 44px;
+      font-family: 'Space Mono', monospace;
+    }
+    .color-picker-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .color-field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .color-field input[type="text"] {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      padding: 4px 6px;
+      text-transform: uppercase;
+    }
+
+    /* ── Match Clock Section ── */
+    .clock-display-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #07090e;
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 12px;
+    }
+    .clock-display {
+      font-family: 'Space Mono', monospace;
+      font-size: 34px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 1px;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .clock-pulse {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .clock-pulse.running {
+      background: var(--pl-neon);
+      box-shadow: 0 0 10px var(--pl-neon);
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse { from { opacity: 0.5; } to { opacity: 1; } }
+
+    .clock-ctrl-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .clock-ctrl-btns button { flex: 1; min-width: 75px; padding: 9px 8px; }
+
+    .clock-params-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    @media (max-width: 600px) {
+      .clock-params-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .extra-time-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .chip {
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(233, 0, 82, 0.15);
+      border: 1px solid rgba(233, 0, 82, 0.3);
+      color: #ff6097;
+      cursor: pointer;
+    }
+    .chip:hover {
+      background: var(--pl-magenta);
+      color: #fff;
+    }
+
+    /* ── Match Statistics Section ── */
+    .stat-row {
+      margin-bottom: 14px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--panel-border);
+    }
+    .stat-row-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .stat-bar-preview {
+      height: 10px;
+      border-radius: 999px;
+      background: #1e2230;
+      display: flex;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .stat-bar-fill-left { height: 100%; transition: width 0.2s ease; }
+    .stat-bar-fill-right { height: 100%; transition: width 0.2s ease; }
+    .stat-inputs-dual {
+      display: grid;
+      grid-template-columns: 70px 1fr 70px;
+      gap: 10px;
+      align-items: center;
+    }
+    .stat-inputs-dual input[type="number"] {
+      text-align: center;
+      font-weight: 700;
+    }
+    .stat-shots-controls {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .stepper-mini {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stepper-mini button { width: 28px; height: 28px; padding: 0; }
+    .stepper-mini input { text-align: center; font-weight: 700; height: 28px; width: 44px; padding: 2px; }
+
+    /* ── Graphic In / Out Cue Matrix ── */
+    .cue-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .cue-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 6px 10px;
+    }
+    .cue-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #cfd4e2;
+    }
+    .cue-actions {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .cue-btn {
+      padding: 7px 15px;
+      font-size: 13px;
+      font-weight: 800;
+      border-radius: 8px;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: all 0.15s ease;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+    .cue-btn:hover {
+      transform: translateY(-1px);
+    }
+    .cue-btn:active {
+      transform: scale(0.96);
+    }
+    .cue-btn.success {
+      background: rgba(0, 255, 135, 0.16);
+      color: #00ff87;
+      border: 1.5px solid rgba(0, 255, 135, 0.5);
+      box-shadow: 0 2px 10px rgba(0, 255, 135, 0.15);
+    }
+    .cue-btn.success:hover {
+      background: #00ff87;
+      color: #031d12;
+      border-color: #00ff87;
+      box-shadow: 0 0 18px rgba(0, 255, 135, 0.45);
+    }
+    .cue-btn.danger {
+      background: rgba(255, 71, 87, 0.16);
+      color: #ff6b81;
+      border: 1.5px solid rgba(255, 71, 87, 0.5);
+      box-shadow: 0 2px 10px rgba(255, 71, 87, 0.15);
+    }
+    .cue-btn.danger:hover {
+      background: #ff4757;
+      color: #fff;
+      border-color: #ff4757;
+      box-shadow: 0 0 18px rgba(255, 71, 87, 0.45);
+    }
+    .cue-btn.ghost {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1.5px solid rgba(255, 255, 255, 0.16);
+    }
+    .cue-btn.ghost:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #fff;
+    }
+    .cue-badge {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+      box-sizing: border-box;
+      white-space: nowrap;
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+    }
+    .cue-badge.on-air {
+      background: rgba(0, 255, 135, 0.16) !important;
+      color: var(--pl-neon) !important;
+      border-color: rgba(0, 255, 135, 0.45) !important;
+      box-shadow: 0 0 14px rgba(0, 255, 135, 0.25);
+    }
+    .cue-badge.hidden {
+      background: rgba(255, 255, 255, 0.04) !important;
+      color: var(--muted) !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      box-shadow: none;
+    }
+    .btn-swap-teams {
+      padding: 7px 15px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      min-height: 38px;
+      border: 1.5px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.06);
+      color: #e0e4f0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn-swap-teams:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: var(--pl-cyan);
+      color: #fff;
+    }
+
+    /* ── Left Column: Preview Section ── */
+    .preview-container {
+      background: #090a0f;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 24px 16px;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.8);
+    }
+    .preview-container.split-mode {
+      gap: 24px;
+      padding: 20px 16px;
+      justify-content: flex-start;
+    }
+    .preview-container.split-mode .pl-broadcast-stage {
+      max-width: 440px;
+      width: 100%;
+    }
+    .preview-container.split-mode canvas.rive {
+      max-width: 520px;
+      width: 100%;
+    }
+    .preview-backdrop-grid {
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       PREMIER LEAGUE GRAPHIC RECREATION (Pixel-Accurate CSS)
+       ══════════════════════════════════════════════════════════════════════════ */
+    .pl-broadcast-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+      transition: all 0.3s ease;
+      filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.65));
+      max-width: 440px;
+      width: 100%;
+    }
+
+    /* ── 1. The Scoreboard Bar ── */
+    .pl-scorebug {
+      display: flex;
+      align-items: center;
+      height: 46px;
+      background: #0a0b12;
+      border-radius: 6px;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .pl-scorebug.cue-out {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.95);
+      pointer-events: none;
+    }
+
+    /* Home Team Strip */
+    .pl-team-home {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 16px 0 20px;
+      font-size: 22px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      min-width: 88px;
+      justify-content: center;
+    }
+    .pl-team-home::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      background: inherit;
+      transform: skewX(-20deg);
+      transform-origin: bottom right;
+    }
+
+    /* Home Score Pill */
+    .pl-score-home {
+      width: 44px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 900;
+      color: #0d0f17;
+      background: #ffffff;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Premier League Lion Emblem (Center Crest) */
+    .pl-center-crest {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--pl-purple);
+      border: 3px solid #161824;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 -8px;
+      z-index: 10;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+    .pl-center-crest svg {
+      width: 28px;
+      height: 28px;
+      fill: #ffffff;
+    }
+
+    /* Away Score Pill */
+    .pl-score-away {
+      width: 44px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 900;
+      color: #0d0f17;
+      background: #ffffff;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Away Team Strip */
+    .pl-team-away {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 20px 0 16px;
+      font-size: 22px;
+      font-weight: 900;
+      color: #121316;
+      letter-spacing: 0.5px;
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      min-width: 88px;
+      justify-content: center;
+    }
+    .pl-team-away::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      background: inherit;
+      transform: skewX(-20deg);
+      transform-origin: top left;
+    }
+
+    /* ── 2. The Match Timer Box (Underneath Lion) ── */
+    .pl-timer-box {
+      background: var(--pl-purple);
+      color: #ffffff;
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 3px 18px;
+      border-bottom-left-radius: 6px;
+      border-bottom-right-radius: 6px;
+      margin-top: -2px;
+      z-index: 5;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      letter-spacing: 0.5px;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    .pl-timer-box.cue-out {
+      opacity: 0;
+      transform: translateY(-8px);
+      pointer-events: none;
+    }
+
+    /* ── 3. Extra Time Card (Underneath Timer) ── */
+    .pl-extratime-badge {
+      background: linear-gradient(135deg, #a8005b, #e90052);
+      color: #ffffff;
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 3px 16px;
+      border-radius: 5px;
+      margin-top: 3px;
+      z-index: 4;
+      box-shadow: 0 4px 10px rgba(233, 0, 82, 0.4);
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    .pl-extratime-badge.cue-out {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.9);
+      pointer-events: none;
+    }
+
+    /* ── 4. Match Statistics Card (Dropdown Underneath) ── */
+    .pl-stats-card {
+      width: 320px;
+      background: #fbfbfd;
+      color: #1a1c24;
+      border-radius: 8px;
+      margin-top: 10px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: top center;
+    }
+    .pl-stats-card.cue-out {
+      opacity: 0;
+      transform: translateY(-16px) scaleY(0.8);
+      pointer-events: none;
+      height: 0;
+      margin-top: 0;
+      border: none;
+    }
+    .pl-stats-body { padding: 14px 16px 10px; }
+    .pl-stat-metric { margin-bottom: 12px; }
+    .pl-stat-metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #1a1b24;
+    }
+    .pl-stat-metric-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #2b0033;
+      letter-spacing: 0.2px;
+    }
+    .pl-stat-metric-bar {
+      height: 7px;
+      border-radius: 3px;
+      background: #d8dde8;
+      display: flex;
+      overflow: hidden;
+    }
+    .pl-stat-metric-bar .bar-left { height: 100%; transition: width 0.3s; }
+    .pl-stat-metric-bar .bar-right { height: 100%; transition: width 0.3s; }
+
+    .pl-stats-title-bar {
+      background: #240029;
+      color: #ffffff;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 6px 0;
+      letter-spacing: 0.6px;
+    }
+    .pl-stats-sponsor {
+      background: #f0f2f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-top: 1px solid #e1e4ee;
+    }
+    .ms-logo {
+      display: grid;
+      grid-template-columns: 8px 8px;
+      grid-gap: 2px;
+    }
+    .ms-sq { width: 8px; height: 8px; }
+    .ms-r { background: #f25022; }
+    .ms-g { background: #7fba00; }
+    .ms-b { background: #00a4ef; }
+    .ms-y { background: #ffb900; }
+    .ms-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #5e626e;
+      letter-spacing: -0.2px;
+    }
+
+    /* ── Rive Canvas Mode ── */
+    canvas.rive {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      aspect-ratio: 16 / 9;
+      background: #090a0f;
+    }
+
+    /* ── Broadcast Action Bar ── */
+    .broadcast-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--panel-border);
+    }
+
+    /* ── Mapper (Collapsible Details) ── */
+    details.mapper-drawer {
+      margin-top: 14px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    details.mapper-drawer summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      user-select: none;
+    }
+    details.mapper-drawer summary:hover { color: #fff; }
+    .maphead, .maprow {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 78px;
+      gap: 6px;
+      align-items: center;
+    }
+    .maphead {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin: 8px 0 6px;
+    }
+    .maprow { margin-bottom: 6px; }
+    .maprow .rk {
+      font: 12px 'Space Mono', monospace;
+      color: #e6e6ea;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .maprow .rk em { color: var(--muted); font-style: normal; font-size: 10px; }
+    .maprow select { padding: 4px 6px; font-size: 11px; height: 28px; }
+
+    /* ── Activity Log ── */
+    .log-panel {
+      background: #090a0f;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      padding: 10px 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      max-height: 140px;
+      overflow-y: auto;
+      color: var(--muted);
+    }
+    .log-panel div { margin-bottom: 3px; line-height: 1.4; }
+    .log-panel .t { color: var(--pl-neon); margin-right: 6px; }
+    .log-panel .e { color: var(--danger); }
+    .log-panel .s { color: var(--pl-cyan); }
+  </style>
+</head>
+<body>
+
+  <!-- File Protocol Security Banner -->
+  <div id="fileProtocolWarning" style="display:none; background:linear-gradient(90deg, #831843, #701a75); color:#fff; padding:10px 20px; font-size:12px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.15); align-items:center; justify-content:space-between; z-index:9999; position:sticky; top:0;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size:18px;">⚠️</span>
+      <span><b>file:// protocol detected:</b> Modern browsers block Web SDK fetch & Rive WASM when opened via <code>file://</code>. Please serve over HTTP: open <a href="http://127.0.0.1:3300/examples/premiere_league_scoreboard/" target="_blank" style="color:var(--pl-neon); text-decoration:underline; font-weight:700;">http://127.0.0.1:3300/examples/premiere_league_scoreboard/</a> or launch <code>run-scoreboard.cmd</code>.</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button id="btnCopyLocalUrl" style="padding:3px 10px; font-size:11px; background:#fff; color:#111; border:none; border-radius:4px; font-weight:700; cursor:pointer;">Copy HTTP URL</button>
+      <button onclick="document.getElementById('fileProtocolWarning').style.display='none'" style="background:transparent; border:none; color:#fff; cursor:pointer; font-size:16px;">×</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand-badge">
+      <!-- Premier League Lion Silhouette SVG -->
+      <svg viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Premier League · Scoreboard Desk</h1>
+      <span class="tag">airZ Studio SDK · Live Broadcast Controller</span>
+    </div>
+    <span class="spacer"></span>
+    <span id="status">not connected</span>
+  </header>
+
+  <!-- Top Connection Bar -->
+  <div class="conn-bar">
+    <div class="conn-group">
+      <label>Controller</label>
+      <input id="baseUrl" value="http://localhost:3467" placeholder="http://localhost:3467" />
+    </div>
+    <div class="conn-group">
+      <label>User</label>
+      <input id="username" value="admin" placeholder="admin" />
+      <input id="password" type="password" value="password" placeholder="password" />
+    </div>
+    <div class="btnrow">
+      <button id="btnConnect" class="primary">Connect</button>
+      <button id="btnDisconnect" class="ghost">Disconnect</button>
+    </div>
+    <div class="conn-group">
+      <label>Rundown</label>
+      <select id="rundownSel"><option value="">— connect first —</option></select>
+    </div>
+    <div class="conn-group">
+      <label>Item</label>
+      <select id="itemSel"><option value="">—</option></select>
+    </div>
+    <label class="switch" style="margin-left: auto;">
+      <input type="checkbox" id="onAir" />
+      <span style="font-weight:700; color:var(--text);">ON AIR</span>
+    </label>
+  </div>
+
+  <!-- Main Grid Area -->
+  <main>
+    <!-- LEFT: LIVE GRAPHIC PREVIEW & ACTIONS -->
+    <section>
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="icon">📺</span> Broadcast Preview</h2>
+          <div class="seg">
+            <button id="pvHtml" class="segbtn on">PL Graphic (HTML)</button>
+            <button id="pvRive" class="segbtn">Rive Runtime</button>
+            <button id="pvSplit" class="segbtn">Split (Both)</button>
+          </div>
+        </div>
+
+        <!-- Visual Stage -->
+        <div class="preview-container">
+          <div class="preview-backdrop-grid"></div>
+
+          <!-- HTML Premier League Broadcast Graphic -->
+          <div id="htmlBugStage" class="pl-broadcast-stage">
+            
+            <!-- 1. The Scoreboard Bar -->
+            <div id="bugScore" class="pl-scorebug">
+              <!-- Home Team -->
+              <div id="dispHomeTeam" class="pl-team-home" style="background: #034694;">CHE</div>
+              <!-- Home Score -->
+              <div id="dispHomeScore" class="pl-score-home" style="background: #ffffff; color: #000;">0</div>
+              
+              <!-- Center Crest: Official Crowned Lion Symbol -->
+              <div class="pl-center-crest">
+                <svg viewBox="0 0 24 24">
+                  <!-- Crowned Lion Graphic -->
+                  <path d="M12 2L9.5 5.5L6 4L7 8L3 10L6.5 12.5L5 17L9.5 15.5L12 20L14.5 15.5L19 17L17.5 12.5L21 10L17 8L18 4L14.5 5.5L12 2Z"/>
+                </svg>
+              </div>
+
+              <!-- Away Score -->
+              <div id="dispAwayScore" class="pl-score-away" style="background: #ffffff; color: #000;">0</div>
+              <!-- Away Team -->
+              <div id="dispAwayTeam" class="pl-team-away" style="background: #f3a533; color: #000;">HUL</div>
+            </div>
+
+            <!-- 2. Match Timer Box (Hanging below center emblem) -->
+            <div id="bugTimer" class="pl-timer-box">
+              <span id="dispTimer">00:00</span>
+            </div>
+
+            <!-- 3. Extra Time Badge (Hanging below timer) -->
+            <div id="bugExtra" class="pl-extratime-badge cue-out">
+              <span id="dispExtra">+0'</span>
+            </div>
+
+            <!-- 4. Match Statistics Card (Dropdown drawer) -->
+            <div id="bugStats" class="pl-stats-card cue-out">
+              <div class="pl-stats-body">
+                <!-- Possession Metric -->
+                <div class="pl-stat-metric">
+                  <div class="pl-stat-metric-row">
+                    <span id="dispStatPossHome">67</span>
+                    <span class="pl-stat-metric-title">Possession (%)</span>
+                    <span id="dispStatPossAway">33</span>
+                  </div>
+                  <div class="pl-stat-metric-bar">
+                    <div id="dispBarPossHome" class="bar-left" style="width: 67%; background: #034694;"></div>
+                    <div id="dispBarPossAway" class="bar-right" style="width: 33%; background: #f3a533;"></div>
+                  </div>
+                </div>
+
+                <!-- Shots Metric -->
+                <div class="pl-stat-metric">
+                  <div class="pl-stat-metric-row">
+                    <span id="dispStatShotsHome">7</span>
+                    <span class="pl-stat-metric-title">Shots</span>
+                    <span id="dispStatShotsAway">9</span>
+                  </div>
+                  <div class="pl-stat-metric-bar">
+                    <div id="dispBarShotsHome" class="bar-left" style="width: 44%; background: #034694;"></div>
+                    <div id="dispBarShotsAway" class="bar-right" style="width: 56%; background: #f3a533;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section Bar -->
+              <div class="pl-stats-title-bar">Match Statistics</div>
+
+              <!-- Microsoft Sponsor Bar -->
+              <div class="pl-stats-sponsor">
+                <div class="ms-logo">
+                  <div class="ms-sq ms-r"></div>
+                  <div class="ms-sq ms-g"></div>
+                  <div class="ms-sq ms-b"></div>
+                  <div class="ms-sq ms-y"></div>
+                </div>
+                <span class="ms-text">Microsoft</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Rive Web Canvas (Toggled via button) -->
+          <canvas id="riveCanvas" class="rive" style="display:none"></canvas>
+          <div id="riveNote" style="font-size:12px; color:var(--muted); margin-top:8px; display:none;"></div>
+        </div>
+
+        <!-- Master Broadcast Action Bar -->
+        <div class="broadcast-actions">
+          <button id="btnPush" class="primary" title="Prepare/stream all values to airZ">
+            <span>⚡</span> Push Data →
+          </button>
+          <button id="btnTake" class="take" title="Flush prepared data and fire in-trigger">
+            <span>▶</span> TAKE IN
+          </button>
+          <button id="btnTakeOut" class="ghost" title="Fire take out trigger">
+            <span>◀</span> TAKE OUT
+          </button>
+          <button id="btnCopyJson" class="ghost" title="Copy raw payload JSON to clipboard">
+            <span>📋</span> Copy Payload
+          </button>
+        </div>
+      </div>
+
+      <!-- TEMPLATE BINDINGS (RIVE) CARD -->
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="icon">🔗</span> Template bindings (Rive)</h2>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="configSavedBadge" style="font-size:11px; font-weight:700; color:var(--pl-neon); background:rgba(0,255,135,0.12); padding:2px 8px; border-radius:999px; border:1px solid rgba(0,255,135,0.3); display:none;">✓ Saved</span>
+            <button id="btnSaveConfig" class="ghost" style="padding:3px 8px; font-size:11px;" title="Persist template mapping & desk values to config">💾 Save Config</button>
+            <button id="btnResetConfig" class="ghost" style="padding:3px 8px; font-size:11px;" title="Reset bindings mapping to auto-detected defaults">↺ Reset</button>
+            <div class="airrow" style="display:flex; align-items:center; gap:6px;">
+              <label style="font-size:11px; text-transform:uppercase; color:var(--muted); margin:0;">Air</label>
+              <select id="airSel" style="width:auto; padding:3px 6px; font-size:11px; height:26px;">
+                <option value="cue">cue</option>
+                <option value="live">live</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="bindings" class="log-panel" style="max-height:220px;">
+          Select an item from the playlist above to inspect its real Rive databindings.
+        </div>
+
+        <!-- Dynamic Trigger Buttons Grid -->
+        <div id="triggersContainer" style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="margin:0; font-size:11px; text-transform:uppercase; color:#cfd4e2; font-weight:700;">
+              ⚡ Rive Trigger Buttons (Live Preview & Broadcast)
+            </label>
+            <span style="font-size:10px; color:var(--muted);">Fires directly in Rive</span>
+          </div>
+          <div id="dynamicTriggersBar" class="btnrow">
+            <!-- Populated dynamically from template triggers -->
+          </div>
+        </div>
+
+        <p style="font-size:11px; color:var(--muted); margin:10px 0 0; line-height:1.4;">
+          Each Rive binding maps to an <b>HTML scoreboard property</b> with an optional format. <b>Trigger</b> bindings bind to the cue triggers and animate directly in the Rive preview.
+        </p>
+      </div>
+
+      <!-- Activity & Telemetry Log -->
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="icon">📡</span> Activity & Event Log</h2>
+          <button id="btnClearLog" class="ghost" style="padding:2px 8px; font-size:11px;">Clear</button>
+        </div>
+        <div id="log" class="log-panel"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: SCOREBOARD OPERATOR CONTROL PANEL -->
+    <section>
+      <!-- TEAMS & SCORES CARD -->
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="icon">⚽</span> Teams & Match Score</h2>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="cue-actions">
+              <button class="cue-btn success" id="btnCueScoreIn">▶ Score In</button>
+              <button class="cue-btn danger" id="btnCueScoreOut">◀ Score Out</button>
+              <span id="cueBadgeScore" class="cue-badge on-air">● ON AIR</span>
+            </div>
+            <button id="btnSwapTeams" class="btn-swap-teams">⇄ Swap Teams</button>
+          </div>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="presets-bar">
+          <span style="font-size:11px; color:var(--muted); line-height:22px;">Presets:</span>
+          <button class="preset-chip" data-preset="che-hul">CHE 0 - 0 HUL</button>
+          <button class="preset-chip" data-preset="ars-tot">ARS 2 - 1 TOT</button>
+          <button class="preset-chip" data-preset="mci-liv">MCI 1 - 1 LIV</button>
+          <button class="preset-chip" data-preset="mun-new">MUN 3 - 2 NEW</button>
+        </div>
+
+        <div class="teams-grid">
+          <!-- HOME TEAM -->
+          <div class="team-box">
+            <div class="team-box-head">
+              <span style="font-size:11px; font-weight:700; color:var(--accent2);">HOME TEAM</span>
+              <span id="indHomeColor" class="team-badge-indicator" style="background:#034694;"></span>
+            </div>
+            <label>Abbreviation (Code)</label>
+            <input id="inputHomeTeam" value="CHE" maxlength="4" style="text-transform:uppercase; font-weight:800;" />
+
+            <label>Score</label>
+            <div class="score-stepper">
+              <button id="btnHomeScoreMinus">−</button>
+              <input id="inputHomeScore" type="number" min="0" value="0" />
+              <button id="btnHomeScorePlus">+</button>
+            </div>
+
+            <div class="color-picker-row">
+              <div>
+                <label>Left Color</label>
+                <div class="color-field">
+                  <input type="color" id="score1LeftColor" value="#034694" />
+                  <input type="text" id="hex_score1LeftColor" value="#034694" />
+                </div>
+              </div>
+              <div>
+                <label>Score Back</label>
+                <div class="color-field">
+                  <input type="color" id="score1ScorBackColor" value="#ffffff" />
+                  <input type="text" id="hex_score1ScorBackColor" value="#ffffff" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AWAY TEAM -->
+          <div class="team-box">
+            <div class="team-box-head">
+              <span style="font-size:11px; font-weight:700; color:var(--pl-yellow);">AWAY TEAM</span>
+              <span id="indAwayColor" class="team-badge-indicator" style="background:#f3a533;"></span>
+            </div>
+            <label>Abbreviation (Code)</label>
+            <input id="inputAwayTeam" value="HUL" maxlength="4" style="text-transform:uppercase; font-weight:800;" />
+
+            <label>Score</label>
+            <div class="score-stepper">
+              <button id="btnAwayScoreMinus">−</button>
+              <input id="inputAwayScore" type="number" min="0" value="0" />
+              <button id="btnAwayScorePlus">+</button>
+            </div>
+
+            <div class="color-picker-row">
+              <div>
+                <label>Right Color</label>
+                <div class="color-field">
+                  <input type="color" id="score2RightColor" value="#f3a533" />
+                  <input type="text" id="hex_score2RightColor" value="#f3a533" />
+                </div>
+              </div>
+              <div>
+                <label>Score Back</label>
+                <div class="color-field">
+                  <input type="color" id="score2ScorBackColor" value="#ffffff" />
+                  <input type="text" id="hex_score2ScorBackColor" value="#ffffff" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MATCH CLOCK & EXTRA TIME -->
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="icon">⏱</span> Match Clock & Timer Engine</h2>
+          <div class="cue-actions">
+            <button class="cue-btn success" id="btnCueTimerIn">▶ Timer In</button>
+            <button class="cue-btn danger" id="btnCueTimerOut">◀ Timer Out</button>
+            <span id="cueBadgeTimer" class="cue-badge on-air">● ON AIR</span>
+          </div>
+        </div>
+
+        <div class="clock-display-wrap">
+          <div class="clock-display">
+            <span id="ctrlClockPulse" class="clock-pulse"></span>
+            <span id="ctrlClockDigits">00:00</span>
+          </div>
+          <div class="seg">
+            <button id="speed1x" class="segbtn on">1x</button>
+            <button id="speed5x" class="segbtn">5x</button>
+            <button id="speed10x" class="segbtn">10x</button>
+          </div>
+        </div>
+
+        <!-- Clock Action Buttons -->
+        <div class="clock-ctrl-btns">
+          <button id="btnClockStart" class="success" title="Fire 'start' trigger">▶ Start</button>
+          <button id="btnClockPause" class="ghost" title="Fire 'pause' trigger">⏸ Pause</button>
+          <button id="btnClockContinue" class="ghost" title="Fire 'continue' trigger">⏵ Continue</button>
+          <button id="btnClockReset" class="danger" title="Fire 'resetTime' trigger">↺ Reset</button>
+        </div>
+
+        <!-- Clock Parameters Grid -->
+        <div class="clock-params-grid">
+          <div>
+            <label>timeDisplay</label>
+            <input id="paramTimeDisplay" value="00:00" placeholder="00:00" />
+          </div>
+          <div>
+            <label>startTime</label>
+            <input id="paramStartTime" value="00:00" placeholder="00:00" />
+          </div>
+          <div>
+            <label>targetEndTime</label>
+            <input id="paramTargetEndTime" value="45:00" placeholder="45:00" />
+          </div>
+          <div>
+            <label>direction</label>
+            <select id="paramDirection">
+              <option value="1">1 (Count Up)</option>
+              <option value="-1">-1 (Count Down)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Period Half Quick Presets -->
+        <div class="presets-bar">
+          <span style="font-size:11px; color:var(--muted); line-height:22px;">Period:</span>
+          <button class="preset-chip" id="btnPeriod1st">1st Half (00:00 → 45:00)</button>
+          <button class="preset-chip" id="btnPeriod2nd">2nd Half (45:00 → 90:00)</button>
+          <button class="preset-chip" id="btnPeriodET1">ET 1 (90:00 → 105:00)</button>
+          <button class="preset-chip" id="btnPeriodET2">ET 2 (105:00 → 120:00)</button>
+        </div>
+
+        <!-- Extra Time / Stoppage -->
+        <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:8px; margin-top:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="margin:0; font-weight:700;">Extra Time (Stoppage)</label>
+              <span style="font-size:11px; color:var(--muted);">Property: <code>extraTime</code></span>
+            </div>
+            <div class="cue-actions">
+              <button class="cue-btn success" id="btnCueExtraIn">▶ Extra In</button>
+              <button class="cue-btn danger" id="btnCueExtraOut">◀ Extra Out</button>
+              <span id="cueBadgeExtra" class="cue-badge hidden">○ HIDDEN</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+            <input id="paramExtraTime" value="+0'" style="width:90px; text-align:center; font-weight:700;" />
+            <div class="extra-time-chips">
+              <span class="chip" data-et="+0'">+0'</span>
+              <span class="chip" data-et="+1'">+1'</span>
+              <span class="chip" data-et="+2'">+2'</span>
+              <span class="chip" data-et="+3'">+3'</span>
+              <span class="chip" data-et="+4'">+4'</span>
+              <span class="chip" data-et="+5'">+5'</span>
+              <span class="chip" data-et="+6'">+6'</span>
+              <span class="chip" data-et="">None</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MATCH STATISTICS CARD -->
+      <div class="card">
+        <div class="card-header">
+          <h2><span class="icon">📊</span> Match Statistics (Possession & Shots)</h2>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="cue-actions">
+              <button class="cue-btn success" id="btnCueStatsIn">▶ Stats In</button>
+              <button class="cue-btn danger" id="btnCueStatsOut">◀ Stats Out</button>
+              <span id="cueBadgeStats" class="cue-badge hidden">○ HIDDEN</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="chkAutoBalancePoss" checked />
+              <span>Auto-balance 100%</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Possession -->
+        <div class="stat-row">
+          <div class="stat-row-head">
+            <span style="color:var(--accent2)">Home Possession</span>
+            <span style="color:var(--muted)">Possession (%)</span>
+            <span style="color:var(--pl-yellow)">Away Possession</span>
+          </div>
+          <div class="stat-bar-preview">
+            <div id="sliderPossHomeBar" class="stat-bar-fill-left" style="width:67%; background:#034694;"></div>
+            <div id="sliderPossAwayBar" class="stat-bar-fill-right" style="width:33%; background:#f3a533;"></div>
+          </div>
+          <div class="stat-inputs-dual">
+            <input id="inputHomePoss" type="number" min="0" max="100" value="67" />
+            <input id="sliderPoss" type="range" min="0" max="100" value="67" style="cursor:pointer;" />
+            <input id="inputAwayPoss" type="number" min="0" max="100" value="33" />
+          </div>
+        </div>
+
+        <!-- Shots -->
+        <div class="stat-row">
+          <div class="stat-row-head">
+            <span style="color:var(--accent2)">Home Shots</span>
+            <span style="color:var(--muted)">Total Shots</span>
+            <span style="color:var(--pl-yellow)">Away Shots</span>
+          </div>
+          <div class="stat-bar-preview">
+            <div id="sliderShotsHomeBar" class="stat-bar-fill-left" style="width:44%; background:#034694;"></div>
+            <div id="sliderShotsAwayBar" class="stat-bar-fill-right" style="width:56%; background:#f3a533;"></div>
+          </div>
+          <div class="stat-shots-controls">
+            <div class="stepper-mini" style="justify-content:flex-start;">
+              <button id="btnHomeShotMinus">−</button>
+              <input id="inputHomeShot" type="number" min="0" value="7" />
+              <button id="btnHomeShotPlus">+</button>
+            </div>
+            <span style="font-size:12px; color:var(--muted); font-weight:600;">VS</span>
+            <div class="stepper-mini" style="justify-content:flex-end;">
+              <button id="btnAwayShotMinus">−</button>
+              <input id="inputAwayShot" type="number" min="0" value="9" />
+              <button id="btnAwayShotPlus">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Script Logic -->
+  <script>
+  (function () {
+    "use strict";
+
+    // ── Application State ──
+    const state = {
+      homeTeam: "CHE",
+      homeScore: 0,
+      awayTeam: "HUL",
+      awayScore: 0,
+      score1LeftColor: "#034694",
+      score1ScorBackColor: "#ffffff",
+      score2RightColor: "#f3a533",
+      score2ScorBackColor: "#ffffff",
+      homePossession: 67,
+      awayPossession: 33,
+      homeShot: 7,
+      awayShot: 9,
+      timeDisplay: "00:00",
+      startTime: "00:00",
+      targetEndTime: "45:00",
+      extraTime: "+0'",
+      direction: 1,
+      // Graphic visibility states
+      cueScore: true,
+      cueTimer: true,
+      cueExtra: false,
+      cueStats: false,
+    };
+
+    // Preset configurations
+    const PRESETS = {
+      "che-hul": {
+        home: "CHE", away: "HUL", scoreH: 0, scoreA: 0,
+        c1Left: "#034694", c1Back: "#ffffff",
+        c2Right: "#f3a533", c2Back: "#ffffff",
+        possH: 67, possA: 33, shotH: 7, shotA: 9
+      },
+      "ars-tot": {
+        home: "ARS", away: "TOT", scoreH: 2, scoreA: 1,
+        c1Left: "#ef0107", c1Back: "#ffffff",
+        c2Right: "#132257", c2Back: "#ffffff",
+        possH: 54, possA: 46, shotH: 14, shotA: 8
+      },
+      "mci-liv": {
+        home: "MCI", away: "LIV", scoreH: 1, scoreA: 1,
+        c1Left: "#6cabdd", c1Back: "#ffffff",
+        c2Right: "#c8102e", c2Back: "#ffffff",
+        possH: 61, possA: 39, shotH: 11, shotA: 10
+      },
+      "mun-new": {
+        home: "MUN", away: "NEW", scoreH: 3, scoreA: 2,
+        c1Left: "#da291c", c1Back: "#ffffff",
+        c2Right: "#241f20", c2Back: "#ffffff",
+        possH: 49, possA: 51, shotH: 16, shotA: 13
+      },
+    };
+
+    const PANEL_ID = "scoreboard";
+    const FORMATS = ["none", "int", "dec1", "dec2", "trInt", "pct1", "pct2", "upper"];
+
+    // DOM references
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      status: $("status"),
+      baseUrl: $("baseUrl"),
+      username: $("username"),
+      password: $("password"),
+      rundownSel: $("rundownSel"),
+      itemSel: $("itemSel"),
+      airSel: $("airSel"),
+      onAir: $("onAir"),
+      log: $("log"),
+      bindings: $("bindings"),
+
+      // Control inputs
+      inputHomeTeam: $("inputHomeTeam"),
+      inputHomeScore: $("inputHomeScore"),
+      inputAwayTeam: $("inputAwayTeam"),
+      inputAwayScore: $("inputAwayScore"),
+      score1LeftColor: $("score1LeftColor"),
+      hex_score1LeftColor: $("hex_score1LeftColor"),
+      score1ScorBackColor: $("score1ScorBackColor"),
+      hex_score1ScorBackColor: $("hex_score1ScorBackColor"),
+      score2RightColor: $("score2RightColor"),
+      hex_score2RightColor: $("hex_score2RightColor"),
+      score2ScorBackColor: $("score2ScorBackColor"),
+      hex_score2ScorBackColor: $("hex_score2ScorBackColor"),
+      indHomeColor: $("indHomeColor"),
+      indAwayColor: $("indAwayColor"),
+
+      // Clock inputs
+      ctrlClockDigits: $("ctrlClockDigits"),
+      ctrlClockPulse: $("ctrlClockPulse"),
+      paramTimeDisplay: $("paramTimeDisplay"),
+      paramStartTime: $("paramStartTime"),
+      paramTargetEndTime: $("paramTargetEndTime"),
+      paramDirection: $("paramDirection"),
+      paramExtraTime: $("paramExtraTime"),
+
+      // Stats inputs
+      inputHomePoss: $("inputHomePoss"),
+      inputAwayPoss: $("inputAwayPoss"),
+      sliderPoss: $("sliderPoss"),
+      sliderPossHomeBar: $("sliderPossHomeBar"),
+      sliderPossAwayBar: $("sliderPossAwayBar"),
+      chkAutoBalancePoss: $("chkAutoBalancePoss"),
+      inputHomeShot: $("inputHomeShot"),
+      inputAwayShot: $("inputAwayShot"),
+      sliderShotsHomeBar: $("sliderShotsHomeBar"),
+      sliderShotsAwayBar: $("sliderShotsAwayBar"),
+
+      // HTML Graphic elements
+      bugScore: $("bugScore"),
+      bugTimer: $("bugTimer"),
+      bugExtra: $("bugExtra"),
+      bugStats: $("bugStats"),
+      dispHomeTeam: $("dispHomeTeam"),
+      dispHomeScore: $("dispHomeScore"),
+      dispAwayScore: $("dispAwayScore"),
+      dispAwayTeam: $("dispAwayTeam"),
+      dispTimer: $("dispTimer"),
+      dispExtra: $("dispExtra"),
+      dispStatPossHome: $("dispStatPossHome"),
+      dispStatPossAway: $("dispStatPossAway"),
+      dispBarPossHome: $("dispBarPossHome"),
+      dispBarPossAway: $("dispBarPossAway"),
+      dispStatShotsHome: $("dispStatShotsHome"),
+      dispStatShotsAway: $("dispStatShotsAway"),
+      dispBarShotsHome: $("dispBarShotsHome"),
+      dispBarShotsAway: $("dispBarShotsAway"),
+
+      // Rive elements
+      previewContainer: document.querySelector(".preview-container"),
+      riveCanvas: $("riveCanvas"),
+      riveNote: $("riveNote"),
+      htmlBugStage: $("htmlBugStage"),
+      pvHtml: $("pvHtml"),
+      pvRive: $("pvRive"),
+      pvSplit: $("pvSplit"),
+    };
+
+    let client = null;
+    let itemsCache = [];
+    let templatesById = new Map();
+    let currentTemplateId = null;
+    let mapping = {};
+    let binder = null;
+    let onAir = false;
+    let air = "cue";
+    let previewMode = "html"; // "html" | "rive"
+
+    // ── Logging Helper ──
+    function log(msg, kind) {
+      const line = document.createElement("div");
+      const ts = new Date().toLocaleTimeString();
+      line.innerHTML = '<span class="t">' + ts + '</span> ' +
+        (kind ? '<span class="' + kind + '">' + msg + '</span>' : msg);
+      els.log.prepend(line);
+    }
+    function setStatus(text, cls) {
+      els.status.textContent = text;
+      els.status.className = cls || "";
+    }
+
+    // ── Timer Engine ──
+    let clockRunning = false;
+    let clockInterval = null;
+    let clockSeconds = 0;
+    let clockSpeed = 1;
+
+    function parseMmSs(str) {
+      const parts = String(str || "00:00").split(":");
+      const m = parseInt(parts[0], 10) || 0;
+      const s = parseInt(parts[1], 10) || 0;
+      return m * 60 + s;
+    }
+    function formatMmSs(totalSec) {
+      const sec = Math.max(0, Math.floor(totalSec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
+
+    function syncClockToUI() {
+      state.timeDisplay = formatMmSs(clockSeconds);
+      els.ctrlClockDigits.textContent = state.timeDisplay;
+      els.paramTimeDisplay.value = state.timeDisplay;
+      els.dispTimer.textContent = state.timeDisplay;
+      if (air === "live" && onAir && client) {
+        pushDataThrottled();
+      }
+      feedRive();
+    }
+
+    function startClock() {
+      if (clockRunning) return;
+      clockRunning = true;
+      els.ctrlClockPulse.classList.add("running");
+      const stepMs = 1000 / clockSpeed;
+      clockInterval = setInterval(() => {
+        clockSeconds += state.direction;
+        if (clockSeconds < 0) clockSeconds = 0;
+        syncClockToUI();
+      }, stepMs);
+      log("Clock started (" + state.timeDisplay + ")", "s");
+    }
+
+    function pauseClock() {
+      if (!clockRunning) return;
+      clockRunning = false;
+      els.ctrlClockPulse.classList.remove("running");
+      clearInterval(clockInterval);
+      clockInterval = null;
+      log("Clock paused at " + state.timeDisplay);
+    }
+
+    function resetClock() {
+      pauseClock();
+      clockSeconds = parseMmSs(state.startTime);
+      syncClockToUI();
+      log("Clock reset to startTime (" + state.startTime + ")");
+    }
+
+    function setClockSpeed(speed) {
+      clockSpeed = speed;
+      $("speed1x").classList.toggle("on", speed === 1);
+      $("speed5x").classList.toggle("on", speed === 5);
+      $("speed10x").classList.toggle("on", speed === 10);
+      if (clockRunning) {
+        pauseClock();
+        startClock();
+      }
+    }
+
+    // ── Build Source Document Payload ──
+    function buildPayload() {
+      return {
+        // Space-separated keys (matching Rive ViewModel in user template)
+        "HOME TEAM": state.homeTeam,
+        "HOME SCORE": String(state.homeScore),
+        "AWAY SCORE": String(state.awayScore),
+        "AWAY TEAM": state.awayTeam,
+
+        // Underscore aliases (for standard naming compatibility)
+        "HOME_TEAM": state.homeTeam,
+        "HOME_SCORE": String(state.homeScore),
+        "AWAY_SCORE": String(state.awayScore),
+        "AWAY_TEAM": state.awayTeam,
+
+        // camelCase & lowercase aliases
+        "homeTeam": state.homeTeam,
+        "awayTeam": state.awayTeam,
+        "home_team": state.homeTeam,
+        "away_team": state.awayTeam,
+        "homeScore": Number(state.homeScore),
+        "awayScore": Number(state.awayScore),
+        "home_score": Number(state.homeScore),
+        "away_score": Number(state.awayScore),
+
+        // Color properties
+        "score1LeftColor": state.score1LeftColor,
+        "score1ScorBackColor": state.score1ScorBackColor,
+        "score2RightColor": state.score2RightColor,
+        "score2ScorBackColor": state.score2ScorBackColor,
+
+        // Match Statistics
+        "home_possession": Number(state.homePossession),
+        "away_possession": Number(state.awayPossession),
+        "home_possesion": Number(state.homePossession), // User prompt typo alias
+        "homePossession": Number(state.homePossession),
+        "awayPossession": Number(state.awayPossession),
+        "home_shot": Number(state.homeShot),
+        "away_shot": Number(state.awayShot),
+        "home_shots": Number(state.homeShot),
+        "away_shots": Number(state.awayShot),
+        "homeShot": Number(state.homeShot),
+        "awayShot": Number(state.awayShot),
+
+        // Clock & Timer properties
+        "timeDisplay": state.timeDisplay,
+        "startTime": state.startTime,
+        "targetEndTime": state.targetEndTime,
+        "extraTime": state.extraTime,
+        "direction": Number(state.direction),
+
+        // In / Out Cue states (Boolean & Action aliases)
+        "cueScore": Boolean(state.cueScore),
+        "Score In": Boolean(state.cueScore),
+        "Score_In": Boolean(state.cueScore),
+        "scoreIn": Boolean(state.cueScore),
+        "score_in": Boolean(state.cueScore),
+        "Score Out": !state.cueScore,
+        "cueTimer": Boolean(state.cueTimer),
+        "Timer In": Boolean(state.cueTimer),
+        "Timer_In": Boolean(state.cueTimer),
+        "timerIn": Boolean(state.cueTimer),
+        "timer_in": Boolean(state.cueTimer),
+        "Timer Out": !state.cueTimer,
+        "cueExtra": Boolean(state.cueExtra),
+        "Extra In": Boolean(state.cueExtra),
+        "Extra_In": Boolean(state.cueExtra),
+        "extraIn": Boolean(state.cueExtra),
+        "extra_in": Boolean(state.cueExtra),
+        "Extra Out": !state.cueExtra,
+        "cueStats": Boolean(state.cueStats),
+        "Stats In": Boolean(state.cueStats),
+        "Stats_In": Boolean(state.cueStats),
+        "statsIn": Boolean(state.cueStats),
+        "stats_in": Boolean(state.cueStats),
+        "Stats Out": !state.cueStats
+      };
+    }
+
+    function updateCueStatusBadges() {
+      const updateOne = (id, on) => {
+        const el = $(id);
+        if (!el) return;
+        el.textContent = on ? "● ON AIR" : "○ HIDDEN";
+        el.className = "cue-badge " + (on ? "on-air" : "hidden");
+      };
+      updateOne("cueBadgeScore", state.cueScore);
+      updateOne("cueBadgeTimer", state.cueTimer);
+      updateOne("cueBadgeExtra", state.cueExtra);
+      updateOne("cueBadgeStats", state.cueStats);
+    }
+
+    // ── Update HTML Graphic Preview ──
+    function updateHtmlGraphic() {
+      // Scoreboard bug
+      els.dispHomeTeam.textContent = state.homeTeam;
+      els.dispHomeTeam.style.background = state.score1LeftColor;
+      els.dispHomeScore.textContent = state.homeScore;
+      els.dispHomeScore.style.background = state.score1ScorBackColor;
+
+      els.dispAwayTeam.textContent = state.awayTeam;
+      els.dispAwayTeam.style.background = state.score2RightColor;
+      els.dispAwayScore.textContent = state.awayScore;
+      els.dispAwayScore.style.background = state.score2ScorBackColor;
+
+      // Color indicators
+      els.indHomeColor.style.background = state.score1LeftColor;
+      els.indAwayColor.style.background = state.score2RightColor;
+
+      // Timer & Extra
+      els.dispTimer.textContent = state.timeDisplay;
+      els.dispExtra.textContent = state.extraTime || "+0'";
+
+      // Stats
+      els.dispStatPossHome.textContent = state.homePossession;
+      els.dispStatPossAway.textContent = state.awayPossession;
+      els.dispBarPossHome.style.width = state.homePossession + "%";
+      els.dispBarPossHome.style.background = state.score1LeftColor;
+      els.dispBarPossAway.style.width = state.awayPossession + "%";
+      els.dispBarPossAway.style.background = state.score2RightColor;
+
+      // Stats slider visual bar in controls
+      els.sliderPossHomeBar.style.width = state.homePossession + "%";
+      els.sliderPossHomeBar.style.background = state.score1LeftColor;
+      els.sliderPossAwayBar.style.width = state.awayPossession + "%";
+      els.sliderPossAwayBar.style.background = state.score2RightColor;
+
+      // Shots
+      els.dispStatShotsHome.textContent = state.homeShot;
+      els.dispStatShotsAway.textContent = state.awayShot;
+      const totalShots = (Number(state.homeShot) + Number(state.awayShot)) || 1;
+      const shotPctHome = Math.round((Number(state.homeShot) / totalShots) * 100);
+      const shotPctAway = 100 - shotPctHome;
+      els.dispBarShotsHome.style.width = shotPctHome + "%";
+      els.dispBarShotsHome.style.background = state.score1LeftColor;
+      els.dispBarShotsAway.style.width = shotPctAway + "%";
+      els.dispBarShotsAway.style.background = state.score2RightColor;
+
+      els.sliderShotsHomeBar.style.width = shotPctHome + "%";
+      els.sliderShotsHomeBar.style.background = state.score1LeftColor;
+      els.sliderShotsAwayBar.style.width = shotPctAway + "%";
+      els.sliderShotsAwayBar.style.background = state.score2RightColor;
+
+      // In / Out Cue visibility classes
+      els.bugScore.classList.toggle("cue-out", !state.cueScore);
+      els.bugTimer.classList.toggle("cue-out", !state.cueTimer);
+      els.bugExtra.classList.toggle("cue-out", !state.cueExtra);
+      els.bugStats.classList.toggle("cue-out", !state.cueStats);
+
+      updateCueStatusBadges();
+      feedRive();
+      debouncedSaveDeskConfig();
+      if (client) pushDataThrottled();
+    }
+
+    // ── Apply Preset ──
+    function applyPreset(id) {
+      const p = PRESETS[id];
+      if (!p) return;
+      state.homeTeam = p.home;
+      state.awayTeam = p.away;
+      state.homeScore = p.scoreH;
+      state.awayScore = p.scoreA;
+      state.score1LeftColor = p.c1Left;
+      state.score1ScorBackColor = p.c1Back;
+      state.score2RightColor = p.c2Right;
+      state.score2ScorBackColor = p.c2Back;
+      state.homePossession = p.possH;
+      state.awayPossession = p.possA;
+      state.homeShot = p.shotH;
+      state.awayShot = p.shotA;
+
+      // Sync form controls
+      els.inputHomeTeam.value = state.homeTeam;
+      els.inputAwayTeam.value = state.awayTeam;
+      els.inputHomeScore.value = state.homeScore;
+      els.inputAwayScore.value = state.awayScore;
+      els.score1LeftColor.value = state.score1LeftColor;
+      els.hex_score1LeftColor.value = state.score1LeftColor;
+      els.score1ScorBackColor.value = state.score1ScorBackColor;
+      els.hex_score1ScorBackColor.value = state.score1ScorBackColor;
+      els.score2RightColor.value = state.score2RightColor;
+      els.hex_score2RightColor.value = state.score2RightColor;
+      els.score2ScorBackColor.value = state.score2ScorBackColor;
+      els.hex_score2ScorBackColor.value = state.score2ScorBackColor;
+
+      els.inputHomePoss.value = state.homePossession;
+      els.inputAwayPoss.value = state.awayPossession;
+      els.sliderPoss.value = state.homePossession;
+      els.inputHomeShot.value = state.homeShot;
+      els.inputAwayShot.value = state.awayShot;
+
+      updateHtmlGraphic();
+      log("Loaded preset " + p.home + " vs " + p.away);
+    }
+
+    // ── airZ SDK Connection & Discovery ──
+    function ctx() {
+      return { rundownId: Number(els.rundownSel.value), itemId: Number(els.itemSel.value) };
+    }
+
+    async function connect() {
+      const baseUrl = els.baseUrl.value.trim();
+      const username = els.username.value.trim();
+      const password = els.password.value;
+      if (!baseUrl || !username) { setStatus("need URL + username", "err"); return; }
+      try {
+        client = Airz.createClient({ baseUrl });
+        const s = await client.auth.login(username, password);
+        setStatus("connected · " + s.user.username, "ok");
+        log("Connected to " + baseUrl + " as " + s.user.username, "s");
+        try {
+          const tpls = await client.templates.list();
+          templatesById = new Map(tpls.map((t) => [t.id, t.name]));
+        } catch (_) { templatesById = new Map(); }
+        openStream();
+        await populateRundowns();
+      } catch (err) {
+        client = null;
+        setStatus("connect failed", "err");
+        log("Connect failed: " + (err && err.message ? err.message : err), "e");
+      }
+      saveConn();
+    }
+
+    function disconnect() {
+      unsubscribeRive();
+      closeStream();
+      client = null; itemsCache = []; templatesById = new Map();
+      currentTemplateId = null; mapping = {}; binder = null; hasSyncedDatabindings = false;
+      els.rundownSel.innerHTML = '<option value="">— connect first —</option>';
+      els.itemSel.innerHTML = '<option value="">—</option>';
+      els.bindings.textContent = "Select an item from the playlist above to inspect its real Rive databindings.";
+      setStatus("not connected");
+      log("Disconnected");
+    }
+
+    async function populateRundowns() {
+      const list = await client.rundowns.list();
+      els.rundownSel.innerHTML = '<option value="">— pick a rundown —</option>' +
+        list.map((r) => '<option value="' + r.id + '">' + escapeXml(r.name) + ' (' + r.itemCount + ' items)</option>').join("");
+      log("Fetched " + list.length + " rundown(s)");
+      const saved = loadSavedIds();
+      if (saved.rundownId) { els.rundownSel.value = saved.rundownId; await populateItems(); }
+    }
+
+    function itemLabel(it) {
+      const tname = it.templateId ? (templatesById.get(it.templateId) || ("template " + it.templateId)) : null;
+      const title = (it.title || "").trim();
+      if (title) return title + (tname ? " · " + tname : "");
+      if (tname) return tname;
+      return (it.type || "item") + " #" + it.id;
+    }
+
+    async function populateItems() {
+      const rid = Number(els.rundownSel.value);
+      els.itemSel.innerHTML = '<option value="">—</option>';
+      els.bindings.textContent = "Select an item to inspect its Rive databindings.";
+      currentTemplateId = null; binder = null;
+      if (!client || !rid) return;
+      itemsCache = await client.items.list(rid);
+      els.itemSel.innerHTML = '<option value="">— pick an item —</option>' +
+        itemsCache.map((it) => '<option value="' + it.id + '">' + escapeXml(itemLabel(it)) + '</option>').join("");
+      log("Fetched " + itemsCache.length + " item(s) from rundown " + rid);
+      const saved = loadSavedIds();
+      if (saved.itemId) { els.itemSel.value = saved.itemId; await onItemSelected(); }
+    }
+
+    // ── Template & Desk Configuration Persistence ──
+    // ── Template & Desk Configuration Persistence ──
+    let saveDeskTimer = null;
+    function debouncedSaveDeskConfig() {
+      clearTimeout(saveDeskTimer);
+      saveDeskTimer = setTimeout(() => {
+        saveDeskConfig(currentTemplateId);
+      }, 350);
+    }
+
+    function deskLsKey(tplId) {
+      return "airz.pl.desk.tpl." + (tplId || currentTemplateId || "default");
+    }
+
+    function getDeskState() {
+      return {
+        homeTeam: state.homeTeam,
+        awayTeam: state.awayTeam,
+        homeScore: state.homeScore,
+        awayScore: state.awayScore,
+        score1LeftColor: state.score1LeftColor,
+        score1ScorBackColor: state.score1ScorBackColor,
+        score2RightColor: state.score2RightColor,
+        score2ScorBackColor: state.score2ScorBackColor,
+        homePossession: state.homePossession,
+        awayPossession: state.awayPossession,
+        homeShot: state.homeShot,
+        awayShot: state.awayShot,
+        timeDisplay: state.timeDisplay,
+        startTime: state.startTime,
+        targetEndTime: state.targetEndTime,
+        extraTime: state.extraTime,
+        direction: state.direction,
+        cueScore: state.cueScore,
+        cueTimer: state.cueTimer,
+        cueExtra: state.cueExtra,
+        cueStats: state.cueStats,
+        air: air,
+        onAir: onAir
+      };
+    }
+
+    function saveDeskConfig(tplId) {
+      try {
+        const id = tplId || currentTemplateId;
+        const s = getDeskState();
+        if (id) localStorage.setItem("airz.pl.desk.tpl." + id, JSON.stringify(s));
+        localStorage.setItem("airz.pl.desk.latest", JSON.stringify(s));
+        flashSavedBadge();
+      } catch (_) {}
+    }
+
+    function loadDeskConfig(tplId) {
+      try {
+        const id = tplId || currentTemplateId;
+        const raw = (id ? localStorage.getItem("airz.pl.desk.tpl." + id) : null) || localStorage.getItem("airz.pl.desk.latest");
+        if (!raw) return false;
+        const d = JSON.parse(raw);
+        if (!d || typeof d !== "object") return false;
+
+        if (d.homeTeam !== undefined) state.homeTeam = String(d.homeTeam);
+        if (d.awayTeam !== undefined) state.awayTeam = String(d.awayTeam);
+        if (d.homeScore !== undefined) state.homeScore = Number(d.homeScore);
+        if (d.awayScore !== undefined) state.awayScore = Number(d.awayScore);
+        if (d.score1LeftColor) state.score1LeftColor = d.score1LeftColor;
+        if (d.score1ScorBackColor) state.score1ScorBackColor = d.score1ScorBackColor;
+        if (d.score2RightColor) state.score2RightColor = d.score2RightColor;
+        if (d.score2ScorBackColor) state.score2ScorBackColor = d.score2ScorBackColor;
+        if (d.homePossession !== undefined) state.homePossession = Number(d.homePossession);
+        if (d.awayPossession !== undefined) state.awayPossession = Number(d.awayPossession);
+        if (d.homeShot !== undefined) state.homeShot = Number(d.homeShot);
+        if (d.awayShot !== undefined) state.awayShot = Number(d.awayShot);
+        if (d.timeDisplay) state.timeDisplay = d.timeDisplay;
+        if (d.startTime) state.startTime = d.startTime;
+        if (d.targetEndTime) state.targetEndTime = d.targetEndTime;
+        if (d.extraTime !== undefined) state.extraTime = d.extraTime;
+        if (d.direction !== undefined) state.direction = Number(d.direction);
+        if (d.cueScore !== undefined) state.cueScore = Boolean(d.cueScore);
+        if (d.cueTimer !== undefined) state.cueTimer = Boolean(d.cueTimer);
+        if (d.cueExtra !== undefined) state.cueExtra = Boolean(d.cueExtra);
+        if (d.cueStats !== undefined) state.cueStats = Boolean(d.cueStats);
+        if (d.air) { air = d.air; if (els.airSel) els.airSel.value = air; }
+        if (d.onAir !== undefined) {
+          onAir = Boolean(d.onAir);
+          if (els.onAir) els.onAir.checked = onAir;
+          const onAirLabel = els.onAir ? els.onAir.closest("label") : null;
+          const onAirText = onAirLabel ? onAirLabel.querySelector("span") : null;
+          if (onAirLabel) onAirLabel.classList.toggle("on-air-active", onAir);
+          if (onAirText) onAirText.textContent = onAir ? "● LIVE ON AIR" : "ON AIR";
+        }
+
+        syncStateToForm();
+        updateHtmlGraphic();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function syncStateToForm() {
+      els.inputHomeTeam.value = state.homeTeam;
+      els.inputAwayTeam.value = state.awayTeam;
+      els.inputHomeScore.value = state.homeScore;
+      els.inputAwayScore.value = state.awayScore;
+      els.score1LeftColor.value = state.score1LeftColor;
+      els.hex_score1LeftColor.value = state.score1LeftColor;
+      els.score1ScorBackColor.value = state.score1ScorBackColor;
+      els.hex_score1ScorBackColor.value = state.score1ScorBackColor;
+      els.score2RightColor.value = state.score2RightColor;
+      els.hex_score2RightColor.value = state.score2RightColor;
+      els.score2ScorBackColor.value = state.score2ScorBackColor;
+      els.hex_score2ScorBackColor.value = state.score2ScorBackColor;
+      els.inputHomePoss.value = state.homePossession;
+      els.inputAwayPoss.value = state.awayPossession;
+      els.sliderPoss.value = state.homePossession;
+      els.inputHomeShot.value = state.homeShot;
+      els.inputAwayShot.value = state.awayShot;
+      els.paramTimeDisplay.value = state.timeDisplay;
+      els.ctrlClockDigits.textContent = state.timeDisplay;
+      clockSeconds = parseMmSs(state.timeDisplay);
+      els.paramStartTime.value = state.startTime;
+      els.paramTargetEndTime.value = state.targetEndTime;
+      els.paramExtraTime.value = state.extraTime;
+      els.paramDirection.value = String(state.direction);
+    }
+
+    let badgeTimer = null;
+    function flashSavedBadge() {
+      const b = $("configSavedBadge");
+      if (!b) return;
+      b.style.display = "inline-block";
+      clearTimeout(badgeTimer);
+      badgeTimer = setTimeout(() => { b.style.display = "none"; }, 2500);
+    }
+
+    let lastTemplateInfo = [];
+    async function onItemSelected() {
+      // 1. If a previous template was active, save its desk values and mapping
+      if (currentTemplateId) {
+        saveDeskConfig(currentTemplateId);
+        saveMapping();
+      }
+
+      const id = Number(els.itemSel.value);
+      const it = itemsCache.find((x) => x.id === id);
+      currentTemplateId = null; mapping = {}; binder = null; hasSyncedDatabindings = false;
+      if (!it) { els.bindings.textContent = "—"; return; }
+      saveConn();
+
+      if (!it.templateId) {
+        els.bindings.textContent = "“" + itemLabel(it) + "” has no Rive template. Push sends raw fields.";
+        return;
+      }
+      currentTemplateId = it.templateId;
+
+      // 2. Restore saved desk values for this selected template (or fallback to latest)
+      loadDeskConfig(currentTemplateId);
+
+      els.bindings.textContent = "Reading databindings for “" + itemLabel(it) + "” …";
+      try {
+        const info = await Airz.describeTemplateBindings(client, it.templateId);
+        lastTemplateInfo = info;
+        loadMapping(info);
+        renderMapper(info);
+        renderDynamicTriggers(info);
+        rebuildBinder();
+        initRive();
+        log("Loaded config & " + info.length + " databindings for template #" + it.templateId, "s");
+      } catch (err) {
+        els.bindings.textContent = "Couldn't read bindings: " + (err && err.message ? err.message : err);
+      }
+    }
+
+    // ── Template Mapper Engine ──
+    function mapLsKey(tplId) {
+      return "airz.pl.map.tpl." + (tplId || currentTemplateId || "default");
+    }
+
+    function guessAction(key) {
+      const k = String(key).toLowerCase().replace(/[-_]/g, " ");
+      if (/\bscore in\b|\bscorein\b|\bscore enter\b|\bin\b/.test(k) && !/\bout\b/.test(k)) return "Score In";
+      if (/\bscore out\b|\bscoreout\b|\bscore exit\b|\bout\b/.test(k) && !/\bin\b/.test(k)) return "Score Out";
+      if (/\btimer in\b|\btimerin\b/.test(k) && !/\bout\b/.test(k)) return "Timer In";
+      if (/\btimer out\b|\btimerout\b/.test(k)) return "Timer Out";
+      if (/\bextra in\b|\bextrain\b/.test(k) && !/\bout\b/.test(k)) return "Extra In";
+      if (/\bextra out\b|\bextraout\b/.test(k)) return "Extra Out";
+      if (/\bstats in\b|\bstatsin\b/.test(k) && !/\bout\b/.test(k)) return "Stats In";
+      if (/\bstats out\b|\bstatsout\b/.test(k)) return "Stats Out";
+      if (/\bstart\b/.test(k)) return "start";
+      if (/\bpause\b/.test(k)) return "pause";
+      if (/\bcontinue\b/.test(k)) return "continue";
+      if (/\bresettime\b|reset time|reset/.test(k)) return "resetTime";
+      if (/\bout\b|hide|off|exit|leave/.test(k)) return "OUT";
+      if (/\bin\b|take|show|\bon\b|enter|reveal/.test(k)) return "TAKE";
+      return key;
+    }
+
+    function loadMapping(info) {
+      let stored = {};
+      try {
+        const raw = (currentTemplateId ? localStorage.getItem(mapLsKey(currentTemplateId)) : null) || localStorage.getItem("airz.pl.map.latest");
+        if (raw) stored = JSON.parse(raw);
+      } catch (_) {}
+      const deskFields = Object.keys(buildPayload());
+      mapping = {};
+      (info || []).forEach((b) => {
+        const s = stored[b.key] || {};
+        if (b.type === "trigger") {
+          mapping[b.key] = {
+            type: "trigger",
+            action: s.action !== undefined ? s.action : guessAction(b.key)
+          };
+        } else {
+          // Exact name auto-mapping or saved mapping
+          const normalized = b.key.replace(/\s+/g, "_");
+          let auto = deskFields.includes(b.key) ? b.key : (deskFields.includes(normalized) ? normalized : "");
+          if (!auto && (b.type === "boolean" || b.type === "string")) {
+            const k = b.key.toLowerCase().replace(/[-_]/g, " ");
+            if (/score.*in|cuescore|score.*vis/i.test(k)) auto = "cueScore";
+            else if (/timer.*in|cuetimer/i.test(k)) auto = "cueTimer";
+            else if (/extra.*in|cueextra/i.test(k)) auto = "cueExtra";
+            else if (/stats.*in|cuestats/i.test(k)) auto = "cueStats";
+          }
+          mapping[b.key] = {
+            type: b.type,
+            from: s.from !== undefined ? s.from : auto,
+            format: s.format || "none"
+          };
+        }
+      });
+      air = els.airSel.value;
+      saveMapping();
+    }
+
+    function saveMapping() {
+      try {
+        if (currentTemplateId) {
+          localStorage.setItem(mapLsKey(currentTemplateId), JSON.stringify(mapping));
+        }
+        localStorage.setItem("airz.pl.map.latest", JSON.stringify(mapping));
+        flashSavedBadge();
+      } catch (_) {}
+    }
+
+    function resetMappingToDefaults() {
+      if (!currentTemplateId) return;
+      try {
+        localStorage.removeItem(mapLsKey(currentTemplateId));
+      } catch (_) {}
+      if (client) {
+        onItemSelected();
+      }
+      log("Reset template mapping to auto-detected defaults");
+    }
+
+    function renderMapper(info) {
+      if (!info || !info.length) {
+        els.bindings.innerHTML = "<div>No databindings declared on this template.</div>";
+        renderDynamicTriggers([]);
+        return;
+      }
+      const deskFields = Object.keys(buildPayload());
+      const head = '<div class="maphead"><span>Rive binding</span><span>← desk field / trigger action</span><span>format / test</span></div>';
+      const rows = info.map((b) => {
+        const m = mapping[b.key] || {};
+        if (b.type === "trigger") {
+          const opts = [
+            ["", "— none —"],
+            ["TAKE", "▶ TAKE ALL IN"],
+            ["OUT", "◀ TAKE ALL OUT"],
+            ["Score In", "Score In"],
+            ["Score Out", "Score Out"],
+            ["Timer In", "Timer In"],
+            ["Timer Out", "Timer Out"],
+            ["Extra In", "Extra In"],
+            ["Extra Out", "Extra Out"],
+            ["Stats In", "Stats In"],
+            ["Stats Out", "Stats Out"],
+            ["start", "Clock Start"],
+            ["pause", "Clock Pause"],
+            ["continue", "Clock Continue"],
+            ["resetTime", "Clock Reset"]
+          ].map(([v, l]) => '<option value="' + v + '"' + (v === (m.action || "") ? ' selected' : '') + '>' + l + '</option>').join("");
+
+          return '<div class="maprow">' +
+            '<span class="rk" title="' + escapeAttr(b.key) + '">' + escapeXml(b.key) + ' <em>trigger</em></span>' +
+            '<select data-map="' + escapeAttr(b.key) + '" data-part="action">' + opts + '</select>' +
+            '<button class="cue-btn ghost" data-fire-trig="' + escapeAttr(b.key) + '" style="padding:2px 6px; font-size:10px; border-color:rgba(0,255,135,0.3); color:var(--pl-neon);" title="Test & fire in Rive preview">⚡ Fire</button></div>';
+        }
+        const fromOpts = '<option value="">— none —</option>' +
+          deskFields.map((f) => '<option value="' + f + '"' + (f === m.from ? ' selected' : '') + '>' + f + '</option>').join("");
+        const fmtOpts = FORMATS.map((f) => '<option value="' + f + '"' + (f === m.format ? ' selected' : '') + '>' + f + '</option>').join("");
+        return '<div class="maprow">' +
+          '<span class="rk" title="' + escapeAttr(b.key) + '">' + escapeXml(b.key) + ' <em>' + b.type + '</em></span>' +
+          '<select data-map="' + escapeAttr(b.key) + '" data-part="from">' + fromOpts + '</select>' +
+          '<select data-map="' + escapeAttr(b.key) + '" data-part="format">' + fmtOpts + '</select></div>';
+      });
+
+      const dataMapped = info.filter((b) => mapping[b.key] && mapping[b.key].from).length;
+      const trigMapped = info.filter((b) => mapping[b.key] && mapping[b.key].action).length;
+      els.bindings.innerHTML = head + rows.join("") +
+        '<div style="margin-top:8px; color:var(--muted); font-size:11px;">' +
+        info.length + ' template keys · ' + dataMapped + ' mapped data · ' + trigMapped + ' bound triggers</div>';
+    }
+
+    function renderDynamicTriggers(info) {
+      const container = $("dynamicTriggersBar");
+      const cuesContainer = $("cuesDynamicTriggers");
+      if (!container) return;
+
+      let triggers = (info || []).filter(b => b.type === "trigger").map(b => b.key);
+      if (!triggers.length) {
+        triggers = ["Score In", "Score Out", "Timer In", "Timer Out", "Extra In", "Extra Out", "Stats In", "Stats Out", "start", "pause", "continue", "resetTime"];
+      }
+
+      container.innerHTML = triggers.map(name => {
+        const boundAction = mapping[name] && mapping[name].action;
+        const boundBadge = boundAction && boundAction !== name
+          ? `<span style="opacity:0.85; font-size:9px; background:rgba(0,0,0,0.45); padding:1px 5px; border-radius:4px; margin-left:4px; font-weight:600; border:1px solid rgba(255,255,255,0.15);">➔ ${escapeXml(boundAction)}</span>`
+          : "";
+        const cls = /in|start|continue|show|reveal/i.test(name) ? "success" : /out|pause|reset|hide/i.test(name) ? "danger" : "ghost";
+        return `<button class="cue-btn ${cls}" data-trig-btn="${escapeAttr(name)}" style="min-height:36px; padding:7px 14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Fire trigger '${escapeAttr(name)}' in Rive preview">
+          <span>⚡</span> <span>${escapeXml(name)}</span> ${boundBadge}
+        </button>`;
+      }).join("");
+
+      if (cuesContainer) {
+        cuesContainer.innerHTML = `
+          <div style="font-size:11px; text-transform:uppercase; color:var(--muted); margin:14px 0 8px; font-weight:700; display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+            <span>⚡ Rive Template Triggers (${triggers.length})</span>
+            <span style="font-size:10px; color:var(--pl-neon); font-weight:600;">Animates in Rive Preview</span>
+          </div>
+          <div class="btnrow" style="flex-wrap:wrap; gap:6px;">${triggers.map(name => {
+            const boundAction = mapping[name] && mapping[name].action;
+            const boundBadge = boundAction && boundAction !== name
+              ? `<span style="opacity:0.85; font-size:9px; background:rgba(0,0,0,0.45); padding:1px 5px; border-radius:4px; font-weight:600; border:1px solid rgba(255,255,255,0.15);">➔ ${escapeXml(boundAction)}</span>`
+              : "";
+            const cls = /in|start|continue/i.test(name) ? "success" : /out|pause|reset/i.test(name) ? "danger" : "ghost";
+            return `<button class="cue-btn ${cls}" data-trig-btn="${escapeAttr(name)}" style="min-height:36px; padding:7px 14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Fire '${escapeAttr(name)}' in Rive preview">
+              <span>▶</span> <span>${escapeXml(name)}</span> ${boundBadge}
+            </button>`;
+          }).join("")}</div>
+        `;
+      }
+    }
+
+    function rebuildBinder() {
+      binder = null;
+      const { rundownId, itemId } = ctx();
+      if (!client || !currentTemplateId || !rundownId || !itemId) return;
+      const fields = Object.entries(mapping)
+        .filter(([, m]) => m && m.from)
+        .map(([to, m]) => ({ to, from: m.from, format: m.format || "none" }));
+      if (!fields.length) return;
+      const pc = { panelId: PANEL_ID, rundownId, itemId, air, fields };
+      const spec = Airz.configToPanelSpec(pc, {});
+      binder = new Airz.PanelBinder(client);
+      binder.setOnAir(onAir);
+      binder.add(spec);
+    }
+
+    // ── Push / Take / Trigger Actions ──
+    let pushThrottledTimer = null;
+    function pushDataThrottled() {
+      if (pushThrottledTimer) return;
+      pushThrottledTimer = setTimeout(() => {
+        pushThrottledTimer = null;
+        push();
+      }, 200);
+    }
+
+    async function push() {
+      saveDeskConfig(currentTemplateId);
+      const data = buildPayload();
+      feedRive();
+      const { rundownId, itemId } = ctx();
+      if (!client || !rundownId || !itemId) {
+        log("DRY RUN — " + Object.keys(data).length + " fields prepared (saved in config)", "s");
+        return;
+      }
+      try {
+        if (binder) {
+          if (onAir && air !== "live") {
+            air = "live";
+            if (els.airSel) els.airSel.value = "live";
+            rebuildBinder();
+          }
+          if (binder) binder.setOnAir(onAir);
+          await binder.updateOne(PANEL_ID, data);
+          await binder.flush();
+          const streaming = onAir;
+          log((streaming ? "⚡ Streamed (ON AIR) " : "Prepared ") + Object.keys(data).length + " fields via PanelBinder → " +
+            (streaming ? "PROGRAM (live broadcast)" : "preview (cue — awaiting TAKE)"), streaming ? "s" : "");
+        } else {
+          await client.items.setData(rundownId, itemId, data);
+          log("Pushed " + Object.keys(data).length + " fields to item #" + itemId + (onAir ? " (ON AIR live)" : ""), onAir ? "s" : "");
+        }
+      } catch (err) {
+        log("Push failed: " + (err && err.message ? err.message : err), "e");
+      }
+    }
+
+    let hasSyncedDatabindings = false;
+
+    async function syncAllDatabindings(triggerContext) {
+      saveDeskConfig(currentTemplateId);
+      const data = buildPayload();
+
+      // 1. First, sync values to Rive preview runtime immediately
+      feedRive();
+
+      // 2. Sync values to airZ Studio controller item
+      const { rundownId, itemId } = ctx();
+      if (client && rundownId && itemId) {
+        try {
+          if (binder) {
+            await binder.updateOne(PANEL_ID, data);
+            await binder.flush();
+            log("⚡ Synced all " + Object.keys(data).length + " databinding items via PanelBinder" + (triggerContext ? " (" + triggerContext + ")" : ""), "s");
+          } else {
+            await client.items.setData(rundownId, itemId, data);
+            log("⚡ Synced all " + Object.keys(data).length + " databinding items to item #" + itemId + (triggerContext ? " (" + triggerContext + ")" : ""), "s");
+          }
+        } catch (err) {
+          log("Databinding sync note: " + (err && err.message ? err.message : err), "w");
+        }
+      } else {
+        log("⚡ Synced all databinding items locally" + (triggerContext ? " (" + triggerContext + ")" : ""), "s");
+      }
+    }
+
+    function reflectCueState(triggerName) {
+      const k = (triggerName || "").toLowerCase();
+      if (k.includes("score in") || k === "score_in") state.cueScore = true;
+      else if (k.includes("score out") || k === "score_out") state.cueScore = false;
+      else if (k.includes("timer in") || k === "timer_in") state.cueTimer = true;
+      else if (k.includes("timer out") || k === "timer_out") state.cueTimer = false;
+      else if (k.includes("extra in") || k === "extra_in") state.cueExtra = true;
+      else if (k.includes("extra out") || k === "extra_out") state.cueExtra = false;
+      else if (k.includes("stats in") || k === "stats_in") state.cueStats = true;
+      else if (k.includes("stats out") || k === "stats_out") state.cueStats = false;
+      else if (k === "start") startClock();
+      else if (k === "pause") pauseClock();
+      else if (k === "continue") startClock();
+      else if (k === "resettime" || k === "reset_time") resetClock();
+      updateHtmlGraphic();
+    }
+
+    async function fireTrigger(actionOrName) {
+      // First time trigger or any IN/TAKE cue should sync all databinding items
+      const isFirstTrigger = !hasSyncedDatabindings;
+      const isInOrTake = /in\b|^take$/i.test(actionOrName);
+      if (isFirstTrigger || isInOrTake) {
+        hasSyncedDatabindings = true;
+        if (isFirstTrigger) {
+          log("⚡ First time trigger: synchronizing all databinding items...", "s");
+        }
+        await syncAllDatabindings(actionOrName);
+      } else {
+        feedRive();
+      }
+
+      const { rundownId, itemId } = ctx();
+
+      // Find ALL mapped triggers in mapping for this action
+      const boundKeys = [];
+      Object.entries(mapping).forEach(([k, m]) => {
+        if (!m) return;
+        if (m.action === actionOrName || (m.action && m.action.toLowerCase() === actionOrName.toLowerCase())) {
+          boundKeys.push(k);
+        }
+      });
+
+      // Always trigger Rive animation for mapped keys AND actionOrName directly
+      let riveFired = false;
+      for (const k of boundKeys) {
+        if (triggerRiveAnimation(k, actionOrName)) riveFired = true;
+      }
+      if (triggerRiveAnimation(actionOrName, actionOrName)) {
+        riveFired = true;
+      }
+
+      reflectCueState(actionOrName);
+      boundKeys.forEach(k => reflectCueState(k));
+
+      // Visual feedback: if on HTML preview, subtly alert that Rive was triggered
+      if (previewMode === "html" && riveInst) {
+        els.pvRive.style.transition = "all 0.2s ease";
+        els.pvRive.style.boxShadow = "0 0 12px var(--pl-neon)";
+        els.pvRive.style.color = "var(--pl-neon)";
+        setTimeout(() => {
+          els.pvRive.style.boxShadow = "";
+          els.pvRive.style.color = "";
+        }, 800);
+      }
+
+      const primaryTrigger = boundKeys[0] || actionOrName;
+      if (!client || !rundownId || !itemId) {
+        log("⚡ Triggered: “" + actionOrName + "”" + (boundKeys.length ? " (bound to " + boundKeys.join(", ") + ")" : "") + (riveFired ? " — Rive animated" : ""), "s");
+        return;
+      }
+      try {
+        if (binder && (actionOrName === "TAKE" || actionOrName === "OUT")) {
+          if (actionOrName === "TAKE") await binder.take(PANEL_ID, primaryTrigger);
+          else await binder.fire(PANEL_ID, primaryTrigger);
+        } else {
+          await client.items.trigger(rundownId, itemId, primaryTrigger);
+        }
+        log("⚡ Fired trigger “" + primaryTrigger + "” (" + actionOrName + ")" + (onAir ? " to AIR" : " on preview") + (riveFired ? " — Rive animated" : ""));
+      } catch (err) {
+        log("Trigger failed: " + (err && err.message ? err.message : err), "e");
+      }
+    }
+
+    // ── Rive Web Preview ──
+    const RIVE_CDN = "https://unpkg.com/@rive-app/canvas@2.40.1/rive.js";
+    let riveRuntimeP = null, riveInst = null, riveVM = null, riveShownTemplateId = null;
+    let riveSubs = [];
+    const suppressTrig = new Set();
+    const lastVM = {};
+
+    function loadRiveRuntime() {
+      if (window.rive) return Promise.resolve(window.rive);
+      if (!riveRuntimeP) {
+        riveRuntimeP = new Promise((res, rej) => {
+          const s = document.createElement("script");
+          s.src = RIVE_CDN;
+          s.onload = () => res(window.rive);
+          s.onerror = () => { riveRuntimeP = null; rej(new Error("Failed to load Rive runtime (offline?)")); };
+          document.head.appendChild(s);
+        });
+      }
+      return riveRuntimeP;
+    }
+
+    function baseOrigin() { return els.baseUrl.value.trim().replace(/\/+$/, "").replace(/\/api\/v1$/, ""); }
+
+    async function fetchRivBuffer(templateId) {
+      const tpl = await client.templates.get(templateId);
+      const raw = tpl.fileUrl || tpl.downloadUrl || "";
+      if (!raw) throw new Error("Template has no fileUrl");
+      const url = /^https?:/i.test(raw) ? raw : baseOrigin() + raw;
+      const res = await fetch(url, { headers: { Authorization: "Bearer " + client.getToken() } });
+      if (!res.ok) throw new Error(".riv fetch error " + res.status);
+      return await res.arrayBuffer();
+    }
+
+    function pulseRivePreview() {
+      const c = els.riveCanvas;
+      if (!c) return;
+      c.style.transition = "box-shadow 0.15s ease-out";
+      c.style.boxShadow = "0 0 24px rgba(0,255,135,0.7)";
+      setTimeout(() => { c.style.boxShadow = ""; }, 320);
+    }
+
+    function discoverRiveStateMachineTriggers(smName) {
+      if (!riveInst || !smName) return;
+      try {
+        const inputs = riveInst.stateMachineInputs(smName) || [];
+        const detected = [];
+        for (const input of inputs) {
+          if (typeof input.fire === "function" || input.type === 2) {
+            detected.push({ key: input.name, type: "trigger" });
+          }
+        }
+        if (detected.length) {
+          const existingKeys = new Set((lastTemplateInfo || []).map(b => b.key));
+          const newTrigs = detected.filter(d => !existingKeys.has(d.key));
+          if (newTrigs.length) {
+            lastTemplateInfo = [...(lastTemplateInfo || []), ...newTrigs];
+            loadMapping(lastTemplateInfo);
+            renderMapper(lastTemplateInfo);
+            renderDynamicTriggers(lastTemplateInfo);
+            log("Auto-discovered " + newTrigs.length + " Rive StateMachine trigger(s): " + newTrigs.map(t => t.key).join(", "), "s");
+          }
+        }
+      } catch (_) {}
+    }
+
+    async function initRive() {
+      if (!client || !currentTemplateId) {
+        els.riveNote.textContent = "Connect to airZ controller and select a template from rundown to load the .riv file via Web SDK.";
+        els.riveNote.style.display = "block";
+        return;
+      }
+      els.riveNote.textContent = "Loading Rive animation from Web SDK …";
+      els.riveNote.style.display = "block";
+      try {
+        const R = await loadRiveRuntime();
+        const buf = await fetchRivBuffer(currentTemplateId);
+        unsubscribeRive();
+        if (riveInst) { try { riveInst.cleanup(); } catch (_) {} riveInst = null; riveVM = null; }
+
+        let configured = false;
+        riveInst = new R.Rive({
+          buffer: buf,
+          canvas: els.riveCanvas,
+          autoplay: true,
+          autoBind: true,
+          layout: new R.Layout({ fit: R.Fit.Contain, alignment: R.Alignment.Center }),
+          onLoad: () => {
+            if (!configured) {
+              const sms = (riveInst.stateMachineNames || []);
+              if (sms && sms.length) {
+                configured = true;
+                riveInst.load({
+                  buffer: buf,
+                  stateMachines: sms[0],
+                  autoplay: true,
+                  autoBind: true
+                });
+                return;
+              }
+              try { riveInst.play(); } catch (_) {}
+            }
+            try { riveInst.resizeDrawingSurfaceToCanvas(); } catch (_) {}
+            const sms = (riveInst.stateMachineNames || []);
+            riveVM = riveInst.viewModelInstance || null;
+            riveShownTemplateId = currentTemplateId;
+            els.riveNote.style.display = "none";
+            feedRive();
+            subscribeRive();
+            if (sms.length) discoverRiveStateMachineTriggers(sms[0]);
+            log("Rive animation loaded from Web SDK (" + (sms[0] || "default") + ")", "s");
+          },
+          onLoadError: (e) => {
+            els.riveNote.textContent = "Rive load error: " + e;
+          }
+        });
+      } catch (err) {
+        els.riveNote.textContent = "Couldn't load Rive from Web SDK: " + (err && err.message ? err.message : err);
+      }
+    }
+
+    function hexToArgb(hex) {
+      if (!hex) return 0xFFFFFFFF;
+      const clean = hex.replace("#", "");
+      const num = parseInt(clean, 16);
+      return clean.length === 6 ? (0xFF000000 | num) : num;
+    }
+
+    function setRiveProperty(key, val, preferredType) {
+      if (!riveInst) return false;
+      let applied = false;
+
+      // 1. Try ViewModelInstance
+      if (riveVM) {
+        const candidates = [
+          key,
+          key.trim(),
+          key.toUpperCase(),
+          key.toLowerCase(),
+          key.replace(/_/g, " "),
+          key.replace(/\s+/g, "_"),
+          key.replace(/[\s_]+/g, "")
+        ];
+
+        for (const name of candidates) {
+          if (applied) break;
+
+          // If preferredType is explicitly specified, try that first
+          if (preferredType === "string") {
+            try {
+              const p = riveVM.string ? riveVM.string(name) : null;
+              if (p) { p.value = String(val != null ? val : ""); lastVM[name] = p.value; applied = true; break; }
+            } catch (_) {}
+          } else if (preferredType === "number") {
+            try {
+              const p = riveVM.number ? riveVM.number(name) : null;
+              if (p) { p.value = Number(val) || 0; lastVM[name] = p.value; applied = true; break; }
+            } catch (_) {}
+          } else if (preferredType === "boolean") {
+            try {
+              const p = riveVM.boolean ? riveVM.boolean(name) : null;
+              if (p) { p.value = Boolean(val); lastVM[name] = p.value; applied = true; break; }
+            } catch (_) {}
+          } else if (preferredType === "color") {
+            try {
+              const p = riveVM.color ? riveVM.color(name) : null;
+              if (p) { p.value = typeof val === "number" ? val : hexToArgb(String(val)); lastVM[name] = p.value; applied = true; break; }
+            } catch (_) {}
+          }
+
+          // Dynamic fallback: test types based on value and property type in Rive
+          // String
+          try {
+            const p = riveVM.string ? riveVM.string(name) : null;
+            if (p) {
+              p.value = String(val != null ? val : "");
+              lastVM[name] = p.value;
+              applied = true;
+              break;
+            }
+          } catch (_) {}
+
+          // Number
+          try {
+            const p = riveVM.number ? riveVM.number(name) : null;
+            if (p) {
+              p.value = Number(val) || 0;
+              lastVM[name] = p.value;
+              applied = true;
+              break;
+            }
+          } catch (_) {}
+
+          // Color
+          if (typeof val === "string" && (val.startsWith("#") || /^#[0-9A-Fa-f]{6}$/.test(val))) {
+            try {
+              const p = riveVM.color ? riveVM.color(name) : null;
+              if (p) {
+                p.value = hexToArgb(val);
+                lastVM[name] = p.value;
+                applied = true;
+                break;
+              }
+            } catch (_) {}
+          }
+
+          // Boolean
+          try {
+            const p = riveVM.boolean ? riveVM.boolean(name) : null;
+            if (p) {
+              p.value = Boolean(val);
+              lastVM[name] = p.value;
+              applied = true;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 2. Try State Machine Inputs (numbers, booleans)
+      const sms = riveInst.stateMachineNames || [];
+      for (const sm of sms) {
+        try {
+          const inputs = riveInst.stateMachineInputs(sm) || [];
+          for (const input of inputs) {
+            const match = input.name === key || input.name.toLowerCase() === key.toLowerCase() ||
+                          input.name.replace(/_/g, " ").toLowerCase() === key.replace(/_/g, " ").toLowerCase();
+            if (match) {
+              if (input.type === 1 || typeof input.value === "number") {
+                input.value = Number(val) || 0;
+                applied = true;
+              } else if (input.type === 0 || typeof input.value === "boolean") {
+                input.value = Boolean(val);
+                applied = true;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Try Text Runs
+      try {
+        if (typeof riveInst.setTextRunValue === "function") {
+          riveInst.setTextRunValue(key, String(val != null ? val : ""));
+          applied = true;
+        }
+      } catch (_) {}
+
+      return applied;
+    }
+
+    function feedRive() {
+      if (!riveInst) return;
+      const src = buildPayload();
+      const hasTemplateMapping = Object.keys(mapping).length > 0;
+
+      if (hasTemplateMapping) {
+        // When a template has databindings, strictly follow the mapping table!
+        // If a field is set to "— none —" (unbound), do NOT touch or update it in Rive.
+        Object.entries(mapping).forEach(([key, m]) => {
+          if (!m || m.type === "trigger") return;
+          if (!m.from) return; // Explicitly unbound in mapper table -> skip!
+          const val = src[m.from];
+          if (val === undefined) return;
+          setRiveProperty(key, val, m.type);
+        });
+      } else {
+        // Direct fallback ONLY when running standalone without an active template schema
+        Object.entries(src).forEach(([key, v]) => {
+          setRiveProperty(key, v);
+        });
+      }
+    }
+
+    function triggerRiveAnimation(triggerName, actionContext) {
+      pulseRivePreview();
+      if (!riveInst || !triggerName) return false;
+      let fired = false;
+      const act = String(actionContext || triggerName || "");
+      const isScoreIn = /\bscore.*in\b|^in$/i.test(act) || /\bscore.*in\b|^in$/i.test(triggerName);
+      const isScoreOut = /\bscore.*out\b|^out$/i.test(act) || /\bscore.*out\b|^out$/i.test(triggerName);
+      const isTimerIn = /\btimer.*in\b/i.test(act) || /\btimer.*in\b/i.test(triggerName);
+      const isTimerOut = /\btimer.*out\b/i.test(act) || /\btimer.*out\b/i.test(triggerName);
+      const isExtraIn = /\bextra.*in\b/i.test(act) || /\bextra.*in\b/i.test(triggerName);
+      const isExtraOut = /\bextra.*out\b/i.test(act) || /\bextra.*out\b/i.test(triggerName);
+      const isStatsIn = /\bstats.*in\b/i.test(act) || /\bstats.*in\b/i.test(triggerName);
+      const isStatsOut = /\bstats.*out\b/i.test(act) || /\bstats.*out\b/i.test(triggerName);
+
+      const candidateNames = new Set([
+        triggerName,
+        triggerName.trim(),
+        triggerName.replace(/\s+/g, "_"),
+        triggerName.replace(/_/g, " "),
+        triggerName.replace(/\s+/g, ""),
+        triggerName.toLowerCase(),
+        triggerName.toUpperCase()
+      ]);
+
+      if (isScoreIn) {
+        ["Score In", "Score_In", "score_in", "scoreIn", "ScoreIn", "in", "In", "IN", "Score", "score", "Animate-In", "Animate In", "animate_in", "take", "TAKE", "show", "SHOW"].forEach(n => candidateNames.add(n));
+      } else if (isScoreOut) {
+        ["Score Out", "Score_Out", "score_out", "scoreOut", "ScoreOut", "out", "Out", "OUT", "Animate-Out", "Animate Out", "animate_out", "hide", "HIDE"].forEach(n => candidateNames.add(n));
+      } else if (isTimerIn) {
+        ["Timer In", "Timer_In", "timer_in", "timerIn", "TimerIn", "timer", "Timer"].forEach(n => candidateNames.add(n));
+      } else if (isTimerOut) {
+        ["Timer Out", "Timer_Out", "timer_out", "timerOut", "TimerOut"].forEach(n => candidateNames.add(n));
+      } else if (isExtraIn) {
+        ["Extra In", "Extra_In", "extra_in", "extraIn", "ExtraIn", "extra", "Extra"].forEach(n => candidateNames.add(n));
+      } else if (isExtraOut) {
+        ["Extra Out", "Extra_Out", "extra_out", "extraOut", "ExtraOut"].forEach(n => candidateNames.add(n));
+      } else if (isStatsIn) {
+        ["Stats In", "Stats_In", "stats_in", "statsIn", "StatsIn", "stats", "Stats"].forEach(n => candidateNames.add(n));
+      } else if (isStatsOut) {
+        ["Stats Out", "Stats_Out", "stats_out", "statsOut", "StatsOut"].forEach(n => candidateNames.add(n));
+      }
+
+      try {
+        suppressTrig.add(triggerName);
+        setTimeout(() => suppressTrig.delete(triggerName), 400);
+
+        // 1. Try ViewModel triggers
+        if (riveVM && typeof riveVM.trigger === "function") {
+          for (const name of candidateNames) {
+            try {
+              const t = riveVM.trigger(name);
+              if (t) {
+                if (typeof t.trigger === "function") {
+                  t.trigger();
+                  fired = true;
+                  log("Rive ViewModel trigger fired: “" + name + "”", "s");
+                  break;
+                } else if (typeof t.fire === "function") {
+                  t.fire();
+                  fired = true;
+                  log("Rive ViewModel trigger fired: “" + name + "”", "s");
+                  break;
+                }
+              }
+            } catch (_) {}
+          }
+        }
+
+        // 2. Try ViewModel booleans (for cue state toggles)
+        if (riveVM && typeof riveVM.boolean === "function") {
+          for (const name of candidateNames) {
+            try {
+              const b = riveVM.boolean(name);
+              if (b) {
+                const targetVal = isScoreIn ? true : isScoreOut ? false : isTimerIn ? true : isTimerOut ? false : isExtraIn ? true : isExtraOut ? false : isStatsIn ? true : isStatsOut ? false : true;
+                b.value = targetVal;
+                lastVM[name] = targetVal;
+                fired = true;
+                log("Rive ViewModel boolean set: “" + name + "” = " + targetVal, "s");
+              }
+            } catch (_) {}
+          }
+        }
+
+        // 3. Try State Machine inputs (Trigger and Boolean inputs)
+        const smNames = riveInst.stateMachineNames || [];
+        for (const sm of smNames) {
+          try {
+            const inputs = riveInst.stateMachineInputs(sm) || [];
+            for (const input of inputs) {
+              const matches = candidateNames.has(input.name) || Array.from(candidateNames).some(c => c.toLowerCase() === input.name.toLowerCase());
+              if (!matches) continue;
+
+              // 3a. Trigger input
+              if (typeof input.fire === "function" || input.type === 2) {
+                if (typeof input.fire === "function") {
+                  input.fire();
+                  fired = true;
+                  log("Rive StateMachine trigger fired: “" + input.name + "” (" + sm + ")", "s");
+                }
+              }
+              // 3b. Boolean input
+              else if (typeof input.value === "boolean" || input.type === 1) {
+                const targetVal = isScoreIn ? true : isScoreOut ? false : isTimerIn ? true : isTimerOut ? false : isExtraIn ? true : isExtraOut ? false : isStatsIn ? true : isStatsOut ? false : true;
+                input.value = targetVal;
+                fired = true;
+                log("Rive StateMachine boolean set: “" + input.name + "” = " + targetVal + " (" + sm + ")", "s");
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 4. Named animation fallback
+        try {
+          const animNames = riveInst.animationNames || [];
+          for (const name of candidateNames) {
+            if (animNames.includes(name)) {
+              riveInst.play(name);
+              fired = true;
+              log("Rive animation played: “" + name + "”", "s");
+              break;
+            }
+          }
+        } catch (_) {}
+      } catch (err) {
+        log("Rive trigger error: " + err, "e");
+      }
+      return fired;
+    }
+    const fireRiveTriggerDirect = triggerRiveAnimation;
+
+    function unsubscribeRive() { riveSubs.forEach((u) => { try { u(); } catch (_) {} }); riveSubs = []; }
+    function subscribeRive() {
+      unsubscribeRive();
+      if (!riveVM) return;
+      // Observe view model properties for two-way sync
+    }
+
+    function setPreviewMode(mode) {
+      previewMode = mode;
+      const isSplit = mode === "split";
+      const isHtml = mode === "html" || isSplit;
+      const isRive = mode === "rive" || isSplit;
+
+      els.htmlBugStage.style.display = isHtml ? "flex" : "none";
+      els.riveCanvas.style.display = isRive ? "block" : "none";
+      if (els.previewContainer) {
+        els.previewContainer.classList.toggle("split-mode", isSplit);
+      }
+      els.pvHtml.classList.toggle("on", mode === "html");
+      els.pvRive.classList.toggle("on", mode === "rive");
+      if (els.pvSplit) els.pvSplit.classList.toggle("on", isSplit);
+
+      if (isRive) {
+        if (!riveInst || riveShownTemplateId !== currentTemplateId) {
+          initRive();
+        } else {
+          feedRive();
+          requestAnimationFrame(() => {
+            if (riveInst) {
+              try { riveInst.resizeDrawingSurfaceToCanvas(); } catch (_) {}
+            }
+          });
+        }
+      }
+    }
+
+    // ── Live Inbound SSE Stream ──
+    let stream = null;
+    let streamOffs = [];
+    function openStream() {
+      closeStream();
+      if (!client) return;
+      try {
+        stream = client.stream({ onState: (s) => { if (s === "open") log("Live stream connected — inbound sync on", "s"); } });
+        streamOffs.push(stream.on("item.updated", onRemoteItemUpdated));
+        streamOffs.push(stream.on("item.trigger", onRemoteItemTrigger));
+      } catch (e) { log("Live stream failed: " + (e && e.message ? e.message : e), "e"); }
+    }
+    function closeStream() {
+      streamOffs.forEach((o) => { try { o(); } catch (_) {} }); streamOffs = [];
+      if (stream) { try { stream.close(); } catch (_) {} stream = null; }
+    }
+    function eventItemId(d) { return Number(d.itemId != null ? d.itemId : (d.id != null ? d.id : (d.item && d.item.id))); }
+    function onRemoteItemUpdated(e) {
+      const d = e.data || {};
+      const { itemId } = ctx();
+      if (!itemId || eventItemId(d) !== itemId) return;
+      const data = d.data || (d.item && d.item.data);
+      if (!data) return;
+      log("⇣ Received remote update from airZ Studio");
+    }
+    function onRemoteItemTrigger(e) {
+      const d = e.data || {};
+      const { itemId } = ctx();
+      if (!itemId || eventItemId(d) !== itemId) return;
+      const name = d.trigger || d.name;
+      if (!name || suppressTrig.has(name)) return;
+      log("⇣ Remote trigger fired: “" + name + "”");
+      fireRiveTriggerDirect(name);
+    }
+
+    // ── Persistence Helpers ──
+    const LS_KEY = "airz.pl.scoreboard.conn";
+    function saveConn() {
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify({
+          baseUrl: els.baseUrl.value, username: els.username.value,
+          rundownId: els.rundownSel.value, itemId: els.itemSel.value,
+        }));
+      } catch (_) {}
+    }
+    function loadSavedIds() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch (_) { return {}; }
+    }
+    function escapeXml(s) {
+      return String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+    }
+    function escapeAttr(s) {
+      return String(s || "").replace(/"/g, "&quot;");
+    }
+
+    // ── DOM Wiring ──
+    function wireEvents() {
+      // Connect / Disconnect
+      $("btnConnect").addEventListener("click", connect);
+      $("btnDisconnect").addEventListener("click", disconnect);
+      els.rundownSel.addEventListener("change", async () => { await populateItems(); saveConn(); });
+      els.itemSel.addEventListener("change", async () => { await onItemSelected(); saveConn(); });
+      els.airSel.addEventListener("change", () => {
+        air = els.airSel.value;
+        rebuildBinder();
+        log("Air policy set to " + air);
+      });
+      const onAirLabel = els.onAir.closest("label");
+      const onAirText = onAirLabel ? onAirLabel.querySelector("span") : null;
+      els.onAir.addEventListener("change", async () => {
+        onAir = els.onAir.checked;
+        if (onAirLabel) onAirLabel.classList.toggle("on-air-active", onAir);
+        if (onAirText) onAirText.textContent = onAir ? "● LIVE ON AIR" : "ON AIR";
+        if (onAir) {
+          air = "live";
+          if (els.airSel) els.airSel.value = "live";
+          rebuildBinder();
+          if (binder) binder.setOnAir(true);
+          await push();
+          log("🔴 LIVE ON AIR active — any change in the UI now streams directly via SDK to broadcast!", "s");
+        } else {
+          air = "cue";
+          if (els.airSel) els.airSel.value = "cue";
+          rebuildBinder();
+          if (binder) binder.setOnAir(false);
+          log("⚪ REHEARSE — preview mode only (off air)");
+        }
+      });
+
+      // Preview mode switch
+      els.pvHtml.addEventListener("click", () => setPreviewMode("html"));
+      els.pvRive.addEventListener("click", () => setPreviewMode("rive"));
+      if (els.pvSplit) els.pvSplit.addEventListener("click", () => setPreviewMode("split"));
+
+      // Broadcast Actions
+      $("btnPush").addEventListener("click", push);
+      $("btnTake").addEventListener("click", () => {
+        state.cueScore = true;
+        state.cueTimer = true;
+        updateHtmlGraphic();
+        fireTrigger("TAKE");
+      });
+      $("btnTakeOut").addEventListener("click", () => {
+        state.cueScore = false;
+        state.cueTimer = false;
+        state.cueExtra = false;
+        state.cueStats = false;
+        updateHtmlGraphic();
+        fireTrigger("OUT");
+      });
+      $("btnCopyJson").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(buildPayload(), null, 2));
+          log("Copied payload JSON to clipboard", "s");
+        } catch (_) { log("Clipboard copy blocked", "e"); }
+      });
+      $("btnClearLog").addEventListener("click", () => { els.log.innerHTML = ""; });
+
+      // Preset buttons
+      document.querySelectorAll("[data-preset]").forEach((btn) => {
+        btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+      });
+
+      // Teams and Score Inputs
+      els.inputHomeTeam.addEventListener("input", (e) => {
+        state.homeTeam = e.target.value.toUpperCase();
+        updateHtmlGraphic();
+      });
+      els.inputAwayTeam.addEventListener("input", (e) => {
+        state.awayTeam = e.target.value.toUpperCase();
+        updateHtmlGraphic();
+      });
+      els.inputHomeScore.addEventListener("input", (e) => {
+        state.homeScore = parseInt(e.target.value, 10) || 0;
+        updateHtmlGraphic();
+      });
+      els.inputAwayScore.addEventListener("input", (e) => {
+        state.awayScore = parseInt(e.target.value, 10) || 0;
+        updateHtmlGraphic();
+      });
+
+      $("btnHomeScorePlus").addEventListener("click", () => {
+        state.homeScore++;
+        els.inputHomeScore.value = state.homeScore;
+        updateHtmlGraphic();
+      });
+      $("btnHomeScoreMinus").addEventListener("click", () => {
+        if (state.homeScore > 0) state.homeScore--;
+        els.inputHomeScore.value = state.homeScore;
+        updateHtmlGraphic();
+      });
+      $("btnAwayScorePlus").addEventListener("click", () => {
+        state.awayScore++;
+        els.inputAwayScore.value = state.awayScore;
+        updateHtmlGraphic();
+      });
+      $("btnAwayScoreMinus").addEventListener("click", () => {
+        if (state.awayScore > 0) state.awayScore--;
+        els.inputAwayScore.value = state.awayScore;
+        updateHtmlGraphic();
+      });
+
+      // Swap Teams
+      $("btnSwapTeams").addEventListener("click", () => {
+        const tmpTeam = state.homeTeam; state.homeTeam = state.awayTeam; state.awayTeam = tmpTeam;
+        const tmpScore = state.homeScore; state.homeScore = state.awayScore; state.awayScore = tmpScore;
+        const tmpC1 = state.score1LeftColor; state.score1LeftColor = state.score2RightColor; state.score2RightColor = tmpC1;
+        const tmpPoss = state.homePossession; state.homePossession = state.awayPossession; state.awayPossession = tmpPoss;
+        const tmpShot = state.homeShot; state.homeShot = state.awayShot; state.awayShot = tmpShot;
+
+        els.inputHomeTeam.value = state.homeTeam;
+        els.inputAwayTeam.value = state.awayTeam;
+        els.inputHomeScore.value = state.homeScore;
+        els.inputAwayScore.value = state.awayScore;
+        els.score1LeftColor.value = state.score1LeftColor;
+        els.hex_score1LeftColor.value = state.score1LeftColor;
+        els.score2RightColor.value = state.score2RightColor;
+        els.hex_score2RightColor.value = state.score2RightColor;
+        els.inputHomePoss.value = state.homePossession;
+        els.inputAwayPoss.value = state.awayPossession;
+        els.sliderPoss.value = state.homePossession;
+        els.inputHomeShot.value = state.homeShot;
+        els.inputAwayShot.value = state.awayShot;
+
+        updateHtmlGraphic();
+        log("Swapped home and away teams");
+      });
+
+      // Color pickers with hex text sync
+      function linkColorPicker(colorEl, hexEl, stateKey) {
+        colorEl.addEventListener("input", (e) => {
+          state[stateKey] = e.target.value;
+          hexEl.value = e.target.value;
+          updateHtmlGraphic();
+        });
+        hexEl.addEventListener("input", (e) => {
+          let val = e.target.value.trim();
+          if (!val.startsWith("#")) val = "#" + val;
+          if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+            state[stateKey] = val;
+            colorEl.value = val;
+            updateHtmlGraphic();
+          }
+        });
+      }
+      linkColorPicker(els.score1LeftColor, els.hex_score1LeftColor, "score1LeftColor");
+      linkColorPicker(els.score1ScorBackColor, els.hex_score1ScorBackColor, "score1ScorBackColor");
+      linkColorPicker(els.score2RightColor, els.hex_score2RightColor, "score2RightColor");
+      linkColorPicker(els.score2ScorBackColor, els.hex_score2ScorBackColor, "score2ScorBackColor");
+
+      // Clock Controls
+      $("btnClockStart").addEventListener("click", () => { startClock(); fireTrigger("start"); });
+      $("btnClockPause").addEventListener("click", () => { pauseClock(); fireTrigger("pause"); debouncedSaveDeskConfig(); });
+      $("btnClockContinue").addEventListener("click", () => { startClock(); fireTrigger("continue"); });
+      $("btnClockReset").addEventListener("click", () => { resetClock(); fireTrigger("resetTime"); debouncedSaveDeskConfig(); });
+
+      $("speed1x").addEventListener("click", () => setClockSpeed(1));
+      $("speed5x").addEventListener("click", () => setClockSpeed(5));
+      $("speed10x").addEventListener("click", () => setClockSpeed(10));
+
+      els.paramTimeDisplay.addEventListener("input", (e) => {
+        state.timeDisplay = e.target.value;
+        clockSeconds = parseMmSs(state.timeDisplay);
+        els.ctrlClockDigits.textContent = state.timeDisplay;
+        els.dispTimer.textContent = state.timeDisplay;
+        updateHtmlGraphic();
+      });
+      els.paramTimeDisplay.addEventListener("change", (e) => {
+        state.timeDisplay = e.target.value;
+        clockSeconds = parseMmSs(state.timeDisplay);
+        syncClockToUI();
+        updateHtmlGraphic();
+        debouncedSaveDeskConfig();
+      });
+      els.paramStartTime.addEventListener("input", (e) => {
+        state.startTime = e.target.value;
+        updateHtmlGraphic();
+        debouncedSaveDeskConfig();
+      });
+      els.paramStartTime.addEventListener("change", (e) => {
+        state.startTime = e.target.value;
+        updateHtmlGraphic();
+        debouncedSaveDeskConfig();
+      });
+      els.paramTargetEndTime.addEventListener("input", (e) => {
+        state.targetEndTime = e.target.value;
+        updateHtmlGraphic();
+        debouncedSaveDeskConfig();
+      });
+      els.paramTargetEndTime.addEventListener("change", (e) => {
+        state.targetEndTime = e.target.value;
+        updateHtmlGraphic();
+        debouncedSaveDeskConfig();
+      });
+      els.paramDirection.addEventListener("change", (e) => {
+        state.direction = parseInt(e.target.value, 10) || 1;
+        updateHtmlGraphic();
+        debouncedSaveDeskConfig();
+      });
+
+      // Period quick buttons
+      $("btnPeriod1st").addEventListener("click", () => {
+        state.startTime = "00:00"; state.targetEndTime = "45:00"; state.direction = 1;
+        clockSeconds = 0;
+        els.paramStartTime.value = "00:00"; els.paramTargetEndTime.value = "45:00"; els.paramDirection.value = "1";
+        syncClockToUI();
+        debouncedSaveDeskConfig();
+        log("Set period: 1st Half (00:00 → 45:00)");
+      });
+      $("btnPeriod2nd").addEventListener("click", () => {
+        state.startTime = "45:00"; state.targetEndTime = "90:00"; state.direction = 1;
+        clockSeconds = 45 * 60;
+        els.paramStartTime.value = "45:00"; els.paramTargetEndTime.value = "90:00"; els.paramDirection.value = "1";
+        syncClockToUI();
+        debouncedSaveDeskConfig();
+        log("Set period: 2nd Half (45:00 → 90:00)");
+      });
+      $("btnPeriodET1").addEventListener("click", () => {
+        state.startTime = "90:00"; state.targetEndTime = "105:00"; state.direction = 1;
+        clockSeconds = 90 * 60;
+        els.paramStartTime.value = "90:00"; els.paramTargetEndTime.value = "105:00"; els.paramDirection.value = "1";
+        syncClockToUI();
+        debouncedSaveDeskConfig();
+        log("Set period: Extra Time 1st Half (90:00 → 105:00)");
+      });
+      $("btnPeriodET2").addEventListener("click", () => {
+        state.startTime = "105:00"; state.targetEndTime = "120:00"; state.direction = 1;
+        clockSeconds = 105 * 60;
+        els.paramStartTime.value = "105:00"; els.paramTargetEndTime.value = "120:00"; els.paramDirection.value = "1";
+        syncClockToUI();
+        debouncedSaveDeskConfig();
+        log("Set period: Extra Time 2nd Half (105:00 → 120:00)");
+      });
+
+      // Extra time inputs
+      els.paramExtraTime.addEventListener("input", (e) => {
+        state.extraTime = e.target.value;
+        updateHtmlGraphic();
+      });
+      document.querySelectorAll("[data-et]").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          state.extraTime = chip.dataset.et;
+          els.paramExtraTime.value = state.extraTime;
+          state.cueExtra = !!state.extraTime;
+          updateHtmlGraphic();
+          log("Extra time set: " + (state.extraTime || "none"));
+        });
+      });
+
+      // Statistics: Possession
+      function syncPossession(homeVal) {
+        state.homePossession = Math.min(100, Math.max(0, parseInt(homeVal, 10) || 0));
+        if (els.chkAutoBalancePoss.checked) {
+          state.awayPossession = 100 - state.homePossession;
+        }
+        els.inputHomePoss.value = state.homePossession;
+        els.sliderPoss.value = state.homePossession;
+        els.inputAwayPoss.value = state.awayPossession;
+        updateHtmlGraphic();
+      }
+      els.sliderPoss.addEventListener("input", (e) => syncPossession(e.target.value));
+      els.inputHomePoss.addEventListener("input", (e) => syncPossession(e.target.value));
+      els.inputAwayPoss.addEventListener("input", (e) => {
+        state.awayPossession = Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0));
+        if (els.chkAutoBalancePoss.checked) {
+          state.homePossession = 100 - state.awayPossession;
+          els.inputHomePoss.value = state.homePossession;
+          els.sliderPoss.value = state.homePossession;
+        }
+        updateHtmlGraphic();
+      });
+
+      // Statistics: Shots
+      $("btnHomeShotPlus").addEventListener("click", () => {
+        state.homeShot++;
+        els.inputHomeShot.value = state.homeShot;
+        updateHtmlGraphic();
+      });
+      $("btnHomeShotMinus").addEventListener("click", () => {
+        if (state.homeShot > 0) state.homeShot--;
+        els.inputHomeShot.value = state.homeShot;
+        updateHtmlGraphic();
+      });
+      els.inputHomeShot.addEventListener("input", (e) => {
+        state.homeShot = Math.max(0, parseInt(e.target.value, 10) || 0);
+        updateHtmlGraphic();
+      });
+      $("btnAwayShotPlus").addEventListener("click", () => {
+        state.awayShot++;
+        els.inputAwayShot.value = state.awayShot;
+        updateHtmlGraphic();
+      });
+      $("btnAwayShotMinus").addEventListener("click", () => {
+        if (state.awayShot > 0) state.awayShot--;
+        els.inputAwayShot.value = state.awayShot;
+        updateHtmlGraphic();
+      });
+      els.inputAwayShot.addEventListener("input", (e) => {
+        state.awayShot = Math.max(0, parseInt(e.target.value, 10) || 0);
+        updateHtmlGraphic();
+      });
+
+      // Individual In / Out Cue buttons
+      $("btnCueScoreIn").addEventListener("click", () => {
+        state.cueScore = true;
+        updateHtmlGraphic();
+        fireTrigger("Score In");
+      });
+      $("btnCueScoreOut").addEventListener("click", () => {
+        state.cueScore = false;
+        updateHtmlGraphic();
+        fireTrigger("Score Out");
+      });
+
+      $("btnCueTimerIn").addEventListener("click", () => {
+        state.cueTimer = true;
+        updateHtmlGraphic();
+        fireTrigger("Timer In");
+      });
+      $("btnCueTimerOut").addEventListener("click", () => {
+        state.cueTimer = false;
+        updateHtmlGraphic();
+        fireTrigger("Timer Out");
+      });
+
+      $("btnCueExtraIn").addEventListener("click", () => {
+        state.cueExtra = true;
+        updateHtmlGraphic();
+        fireTrigger("Extra In");
+      });
+      $("btnCueExtraOut").addEventListener("click", () => {
+        state.cueExtra = false;
+        updateHtmlGraphic();
+        fireTrigger("Extra Out");
+      });
+
+      $("btnCueStatsIn").addEventListener("click", () => {
+        state.cueStats = true;
+        updateHtmlGraphic();
+        fireTrigger("Stats In");
+      });
+      $("btnCueStatsOut").addEventListener("click", () => {
+        state.cueStats = false;
+        updateHtmlGraphic();
+        fireTrigger("Stats Out");
+      });
+
+      // Config buttons
+      const btnSaveCfg = $("btnSaveConfig");
+      if (btnSaveCfg) {
+        btnSaveCfg.addEventListener("click", () => {
+          saveMapping();
+          saveDeskConfig(currentTemplateId);
+          log("Saved template bindings & desk configuration to config", "s");
+        });
+      }
+      const btnResetCfg = $("btnResetConfig");
+      if (btnResetCfg) {
+        btnResetCfg.addEventListener("click", () => {
+          resetMappingToDefaults();
+        });
+      }
+
+      // Global Trigger click listener for all dynamic trigger buttons
+      document.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-trig-btn], [data-fire-trig]");
+        if (!btn) return;
+        const name = btn.dataset.trigBtn || btn.dataset.fireTrig;
+        if (!name) return;
+
+        btn.style.transform = "scale(0.92)";
+        setTimeout(() => { btn.style.transform = ""; }, 150);
+
+        fireTrigger(name);
+      });
+
+      // Mapper changes
+      els.bindings.addEventListener("change", (e) => {
+        const t = e.target;
+        const key = t.dataset && t.dataset.map;
+        if (!key) return;
+        if (!mapping[key]) mapping[key] = {};
+        mapping[key][t.dataset.part] = t.value;
+        saveMapping();
+        rebuildBinder();
+        feedRive();
+        renderDynamicTriggers(lastTemplateInfo);
+        log("Updated binding mapping for " + key + (t.value ? " ➔ " + t.value : " (unbound)"));
+      });
+    }
+
+    // ── Boot Initialization ──
+    if (window.location.protocol === "file:") {
+      const banner = $("fileProtocolWarning");
+      if (banner) banner.style.display = "flex";
+      const btn = $("btnCopyLocalUrl");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          navigator.clipboard.writeText("http://127.0.0.1:3300/examples/premiere_league_scoreboard/");
+          btn.textContent = "✓ Copied!";
+          setTimeout(() => { btn.textContent = "Copy HTTP URL"; }, 2000);
+        });
+      }
+    }
+    if (typeof Airz === "undefined") {
+      setStatus("SDK not loaded", "err");
+      log("airZ global SDK missing — build it first with: npm run build:sdk", "e");
+    }
+    const saved = loadSavedIds();
+    if (saved.baseUrl) els.baseUrl.value = saved.baseUrl;
+    if (saved.username) els.username.value = saved.username;
+
+    // Restore saved desk config (teams, scores, colors, clock, stats) so nothing resets
+    loadDeskConfig();
+    window.addEventListener("resize", () => {
+      if (riveInst) {
+        try { riveInst.resizeDrawingSurfaceToCanvas(); } catch (_) {}
+      }
+    });
+    wireEvents();
+    renderDynamicTriggers();
+    updateHtmlGraphic();
+    log("Premier League Scoreboard Desk ready (config restored).", "s");
+  })();
+  </script>
+</body>
+</html>
