@@ -19,27 +19,27 @@
 
   <style>
     :root {
-      --bg: #0b0c10;
-      --panel: rgba(20, 22, 30, 0.78);
-      --panel-solid: #14161e;
-      --panel-border: rgba(255, 255, 255, 0.08);
-      --text: #f3f4f8;
-      --muted: #8b92a2;
+      --bg: #0c0e14;
+      --panel: rgba(18, 21, 29, 0.88);
+      --panel-solid: #131722;
+      --panel-border: rgba(255, 255, 255, 0.09);
+      --text: #e2e8f0;
+      --muted: #808a9d;
       --pl-purple: #38003c;
       --pl-neon: #00ff87;
       --pl-cyan: #04f5ff;
       --pl-magenta: #e90052;
       --pl-yellow: #ffeb3b;
-      --accent: var(--pl-neon);
-      --accent2: var(--pl-cyan);
+      --accent: #3b82f6;
+      --accent2: #04f5ff;
       --danger: #ff4757;
-      --success: #2ed573;
+      --success: #00ff87;
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: radial-gradient(1400px 800px at 15% -10%, #1e1333, #0d0f17 50%, var(--bg) 100%);
+      background: radial-gradient(1400px 800px at 20% -10%, #151924, #0d0f17 50%, #08090d 100%);
       color: var(--text);
       font-family: 'Outfit', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
@@ -53,7 +53,7 @@
       gap: 16px;
       padding: 14px 24px;
       border-bottom: 1px solid var(--panel-border);
-      background: rgba(12, 14, 20, 0.85);
+      background: rgba(13, 16, 23, 0.92);
       backdrop-filter: blur(12px);
       position: sticky;
       top: 0;
@@ -62,16 +62,16 @@
     .brand-badge {
       width: 38px;
       height: 38px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, var(--pl-purple), #57025e);
+      border-radius: 9px;
+      background: #181d28;
+      border: 1px solid rgba(255, 255, 255, 0.12);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(56, 0, 60, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
       flex-shrink: 0;
     }
-    .brand-badge svg { width: 24px; height: 24px; fill: var(--pl-neon); }
+    .brand-badge svg { width: 22px; height: 22px; fill: #cbd5e1; }
     header h1 {
       font-size: 17px;
       font-weight: 700;
@@ -257,50 +257,63 @@
     }
     button:active { transform: scale(0.98); }
     button.primary {
-      background: var(--pl-neon);
-      color: #032014;
-      border-color: transparent;
-      font-weight: 700;
+      background: #1c2230;
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      font-weight: 600;
     }
     button.primary:hover {
-      background: #1aff94;
-      box-shadow: 0 0 16px rgba(0, 255, 135, 0.35);
+      background: #273042;
+      border-color: rgba(255, 255, 255, 0.28);
+      color: #ffffff;
     }
     button.take {
-      background: linear-gradient(135deg, #ff9f1c, #ff7800);
-      color: #1a0d00;
-      border-color: transparent;
+      background: #1c2230;
+      color: #f1f5f9;
+      border: 1px solid rgba(255, 255, 255, 0.16);
       font-weight: 700;
     }
-    button.take:hover { box-shadow: 0 0 16px rgba(255, 159, 28, 0.4); }
+    button.take:hover {
+      background: #273042;
+      border-color: rgba(255, 255, 255, 0.28);
+      color: #ffffff;
+    }
+    button.take.is-active {
+      background: #00ff87 !important;
+      color: #021a10 !important;
+      border-color: #00ff87 !important;
+      box-shadow: 0 0 14px rgba(0, 255, 135, 0.35) !important;
+    }
     button.danger {
-      background: rgba(255, 71, 87, 0.15);
-      color: #ff6b81;
-      border-color: rgba(255, 71, 87, 0.3);
+      background: #181d28;
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
     button.danger:hover {
-      background: var(--danger);
+      background: #252c3c;
       color: #fff;
     }
     button.success {
-      background: rgba(46, 213, 115, 0.15);
-      color: #2ed573;
-      border-color: rgba(46, 213, 115, 0.3);
+      background: #181d28;
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
     button.success:hover {
-      background: var(--success);
-      color: #052010;
+      background: #252c3c;
+      color: #fff;
     }
     button.ghost {
       background: transparent;
-      border-color: var(--panel-border);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
     }
-    button.ghost:hover { background: rgba(255, 255, 255, 0.05); }
+    button.ghost:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 
     /* ── Segment Buttons ── */
-    .seg { display: flex; gap: 4px; background: rgba(0, 0, 0, 0.25); padding: 3px; border-radius: 8px; border: 1px solid var(--panel-border); }
-    .segbtn { padding: 4px 10px; font-size: 11px; border: none; background: transparent; border-radius: 6px; }
-    .segbtn.on { background: var(--pl-neon); color: #021a10; font-weight: 700; }
+    .seg { display: flex; gap: 4px; background: rgba(0, 0, 0, 0.35); padding: 3px; border-radius: 8px; border: 1px solid var(--panel-border); }
+    .segbtn { padding: 5px 12px; font-size: 11px; border: 1px solid transparent; background: transparent; border-radius: 6px; color: #8b92a2; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .segbtn:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+    .segbtn.on { background: #283144; color: #ffffff; border-color: rgba(255, 255, 255, 0.22); font-weight: 700; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
 
     /* ── Switch Toggle ── */
     .switch {
@@ -314,18 +327,16 @@
       transition: all 0.2s ease;
       padding: 4px 8px;
       border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
     }
-    .switch input { width: auto; margin: 0; cursor: pointer; accent-color: var(--pl-neon); }
+    .switch input { width: auto; margin: 0; cursor: pointer; }
     .switch.on-air-active {
-      background: rgba(255, 71, 87, 0.18);
-      border: 1px solid rgba(255, 71, 87, 0.6);
-      color: #ff6b81 !important;
-      box-shadow: 0 0 14px rgba(255, 71, 87, 0.4);
-      animation: pulseLive 1.4s infinite alternate;
-    }
-    @keyframes pulseLive {
-      from { box-shadow: 0 0 8px rgba(255, 71, 87, 0.3); }
-      to { box-shadow: 0 0 18px rgba(255, 71, 87, 0.7); }
+      background: #e11d48 !important;
+      border-color: #f43f5e !important;
+      color: #ffffff !important;
+      font-weight: 800;
+      box-shadow: 0 0 14px rgba(225, 29, 72, 0.5);
     }
 
     /* ── Preset Chips ── */
@@ -339,18 +350,24 @@
       padding: 6px 12px;
       border-radius: 7px;
       font-size: 12px;
-      font-weight: 700;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--panel-border);
-      color: #c9cedc;
+      font-weight: 600;
+      background: #181d28;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
       cursor: pointer;
       transition: all 0.15s;
     }
     .preset-chip:hover {
-      border-color: var(--pl-cyan);
+      border-color: rgba(255, 255, 255, 0.28);
       color: #fff;
-      background: rgba(4, 245, 255, 0.12);
+      background: #242a3a;
       transform: translateY(-1px);
+    }
+    .preset-chip.is-active {
+      background: #2b3548;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.45);
+      font-weight: 700;
     }
 
     /* ── Team & Score Control Cards ── */
@@ -459,7 +476,37 @@
       flex-wrap: wrap;
       margin-bottom: 12px;
     }
-    .clock-ctrl-btns button { flex: 1; min-width: 75px; padding: 9px 8px; }
+    .clock-ctrl-btns button {
+      flex: 1;
+      min-width: 75px;
+      padding: 9px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 8px;
+      background: #181d28;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .clock-ctrl-btns button:hover {
+      background: #252c3c;
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #fff;
+    }
+    .clock-ctrl-btns button#btnClockStart.is-active {
+      background: #00ff87 !important;
+      color: #021a10 !important;
+      border-color: #00ff87 !important;
+      font-weight: 700 !important;
+      box-shadow: 0 0 12px rgba(0, 255, 135, 0.35) !important;
+    }
+    .clock-ctrl-btns button#btnClockPause.is-active {
+      background: rgba(255, 193, 7, 0.18) !important;
+      color: #ffc107 !important;
+      border-color: rgba(255, 193, 7, 0.5) !important;
+      font-weight: 700 !important;
+    }
 
     .clock-params-grid {
       display: grid;
@@ -479,18 +526,27 @@
       margin-top: 6px;
     }
     .chip {
-      padding: 3px 8px;
-      border-radius: 5px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(233, 0, 82, 0.15);
-      border: 1px solid rgba(233, 0, 82, 0.3);
-      color: #ff6097;
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #181d28;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
       cursor: pointer;
+      transition: all 0.15s ease;
     }
     .chip:hover {
-      background: var(--pl-magenta);
+      background: #242b3b;
       color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .chip.is-active {
+      background: #2b3548;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.45);
+      font-weight: 700;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
     }
 
     /* ── Match Statistics Section ── */
@@ -573,7 +629,7 @@
     .cue-btn {
       padding: 7px 15px;
       font-size: 13px;
-      font-weight: 800;
+      font-weight: 600;
       border-radius: 8px;
       min-height: 38px;
       display: inline-flex;
@@ -585,50 +641,68 @@
       transition: all 0.15s ease;
       box-sizing: border-box;
       white-space: nowrap;
+      background: #181d28;
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
     .cue-btn:hover {
+      background: #252c3c;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
       transform: translateY(-1px);
     }
     .cue-btn:active {
+      transform: scale(0.97);
+    }
+    /* INACTIVE / DEFAULT: Sleek neutral slate without colorful fills */
+    .cue-btn.success,
+    .cue-btn.danger,
+    .cue-btn.ghost,
+    .cue-btn.cue-in,
+    .cue-btn.cue-out {
+      background: #181d28;
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: none;
+    }
+    .cue-btn.success:hover,
+    .cue-btn.danger:hover,
+    .cue-btn.ghost:hover,
+    .cue-btn.cue-in:hover,
+    .cue-btn.cue-out:hover {
+      background: #252c3c;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    /* ACTIVE STATE ONLY: Color used solely to signal which cue/trigger is active */
+    .cue-btn.is-active.cue-in,
+    .cue-btn.cue-in.is-active,
+    .cue-btn.is-active.success {
+      background: #00ff87 !important;
+      color: #021a10 !important;
+      border-color: #00ff87 !important;
+      font-weight: 700 !important;
+      box-shadow: 0 0 14px rgba(0, 255, 135, 0.35) !important;
+    }
+    .cue-btn.is-active.cue-out,
+    .cue-btn.cue-out.is-active,
+    .cue-btn.is-active.danger {
+      background: rgba(255, 71, 87, 0.18) !important;
+      color: #ff6b81 !important;
+      border-color: rgba(255, 71, 87, 0.5) !important;
+      font-weight: 700 !important;
+      box-shadow: 0 0 10px rgba(255, 71, 87, 0.2) !important;
+    }
+    .cue-btn.flash-active,
+    button.flash-active {
+      background: rgba(255, 255, 255, 0.25) !important;
+      color: #ffffff !important;
+      border-color: rgba(255, 255, 255, 0.5) !important;
       transform: scale(0.96);
-    }
-    .cue-btn.success {
-      background: rgba(0, 255, 135, 0.16);
-      color: #00ff87;
-      border: 1.5px solid rgba(0, 255, 135, 0.5);
-      box-shadow: 0 2px 10px rgba(0, 255, 135, 0.15);
-    }
-    .cue-btn.success:hover {
-      background: #00ff87;
-      color: #031d12;
-      border-color: #00ff87;
-      box-shadow: 0 0 18px rgba(0, 255, 135, 0.45);
-    }
-    .cue-btn.danger {
-      background: rgba(255, 71, 87, 0.16);
-      color: #ff6b81;
-      border: 1.5px solid rgba(255, 71, 87, 0.5);
-      box-shadow: 0 2px 10px rgba(255, 71, 87, 0.15);
-    }
-    .cue-btn.danger:hover {
-      background: #ff4757;
-      color: #fff;
-      border-color: #ff4757;
-      box-shadow: 0 0 18px rgba(255, 71, 87, 0.45);
-    }
-    .cue-btn.ghost {
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text);
-      border: 1.5px solid rgba(255, 255, 255, 0.16);
-    }
-    .cue-btn.ghost:hover {
-      background: rgba(255, 255, 255, 0.14);
-      border-color: rgba(255, 255, 255, 0.35);
-      color: #fff;
     }
     .cue-badge {
       font-size: 11px;
-      font-weight: 800;
+      font-weight: 700;
       letter-spacing: 0.8px;
       padding: 6px 12px;
       border-radius: 8px;
@@ -640,31 +714,31 @@
       transition: all 0.2s ease;
       box-sizing: border-box;
       white-space: nowrap;
-      border: 1.5px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: #64748b;
     }
     .cue-badge.on-air {
-      background: rgba(0, 255, 135, 0.16) !important;
-      color: var(--pl-neon) !important;
+      background: rgba(0, 255, 135, 0.14) !important;
+      color: #00ff87 !important;
       border-color: rgba(0, 255, 135, 0.45) !important;
-      box-shadow: 0 0 14px rgba(0, 255, 135, 0.25);
+      box-shadow: 0 0 12px rgba(0, 255, 135, 0.2);
     }
     .cue-badge.hidden {
       background: rgba(255, 255, 255, 0.04) !important;
-      color: var(--muted) !important;
-      border-color: rgba(255, 255, 255, 0.1) !important;
+      color: #64748b !important;
+      border-color: rgba(255, 255, 255, 0.08) !important;
       box-shadow: none;
     }
     .btn-swap-teams {
       padding: 7px 15px;
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 600;
       border-radius: 8px;
       min-height: 38px;
-      border: 1.5px solid rgba(255, 255, 255, 0.16);
-      background: rgba(255, 255, 255, 0.06);
-      color: #e0e4f0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #181d28;
+      color: #cbd5e1;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -673,8 +747,8 @@
       white-space: nowrap;
     }
     .btn-swap-teams:hover {
-      background: rgba(255, 255, 255, 0.14);
-      border-color: var(--pl-cyan);
+      background: #252c3c;
+      border-color: rgba(255, 255, 255, 0.25);
       color: #fff;
     }
 
@@ -1299,8 +1373,8 @@
           <h2><span class="icon">⚽</span> Teams & Match Score</h2>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <div class="cue-actions">
-              <button class="cue-btn success" id="btnCueScoreIn">▶ Score In</button>
-              <button class="cue-btn danger" id="btnCueScoreOut">◀ Score Out</button>
+              <button class="cue-btn cue-in is-active" id="btnCueScoreIn">▶ Score In</button>
+              <button class="cue-btn cue-out" id="btnCueScoreOut">◀ Score Out</button>
               <span id="cueBadgeScore" class="cue-badge on-air">● ON AIR</span>
             </div>
             <button id="btnSwapTeams" class="btn-swap-teams">⇄ Swap Teams</button>
@@ -1392,8 +1466,8 @@
         <div class="card-header">
           <h2><span class="icon">⏱</span> Match Clock & Timer Engine</h2>
           <div class="cue-actions">
-            <button class="cue-btn success" id="btnCueTimerIn">▶ Timer In</button>
-            <button class="cue-btn danger" id="btnCueTimerOut">◀ Timer Out</button>
+            <button class="cue-btn cue-in is-active" id="btnCueTimerIn">▶ Timer In</button>
+            <button class="cue-btn cue-out" id="btnCueTimerOut">◀ Timer Out</button>
             <span id="cueBadgeTimer" class="cue-badge on-air">● ON AIR</span>
           </div>
         </div>
@@ -1412,10 +1486,10 @@
 
         <!-- Clock Action Buttons -->
         <div class="clock-ctrl-btns">
-          <button id="btnClockStart" class="success" title="Fire 'start' trigger">▶ Start</button>
-          <button id="btnClockPause" class="ghost" title="Fire 'pause' trigger">⏸ Pause</button>
-          <button id="btnClockContinue" class="ghost" title="Fire 'continue' trigger">⏵ Continue</button>
-          <button id="btnClockReset" class="danger" title="Fire 'resetTime' trigger">↺ Reset</button>
+          <button id="btnClockStart" title="Fire 'start' trigger">▶ Start</button>
+          <button id="btnClockPause" title="Fire 'pause' trigger">⏸ Pause</button>
+          <button id="btnClockContinue" title="Fire 'continue' trigger">⏵ Continue</button>
+          <button id="btnClockReset" title="Fire 'resetTime' trigger">↺ Reset</button>
         </div>
 
         <!-- Clock Parameters Grid -->
@@ -1458,15 +1532,15 @@
               <span style="font-size:11px; color:var(--muted);">Property: <code>extraTime</code></span>
             </div>
             <div class="cue-actions">
-              <button class="cue-btn success" id="btnCueExtraIn">▶ Extra In</button>
-              <button class="cue-btn danger" id="btnCueExtraOut">◀ Extra Out</button>
+              <button class="cue-btn cue-in" id="btnCueExtraIn">▶ Extra In</button>
+              <button class="cue-btn cue-out is-active" id="btnCueExtraOut">◀ Extra Out</button>
               <span id="cueBadgeExtra" class="cue-badge hidden">○ HIDDEN</span>
             </div>
           </div>
           <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
             <input id="paramExtraTime" value="+0'" style="width:90px; text-align:center; font-weight:700;" />
             <div class="extra-time-chips">
-              <span class="chip" data-et="+0'">+0'</span>
+              <span class="chip is-active" data-et="+0'">+0'</span>
               <span class="chip" data-et="+1'">+1'</span>
               <span class="chip" data-et="+2'">+2'</span>
               <span class="chip" data-et="+3'">+3'</span>
@@ -1485,8 +1559,8 @@
           <h2><span class="icon">📊</span> Match Statistics (Possession & Shots)</h2>
           <div style="display:flex; align-items:center; gap:10px;">
             <div class="cue-actions">
-              <button class="cue-btn success" id="btnCueStatsIn">▶ Stats In</button>
-              <button class="cue-btn danger" id="btnCueStatsOut">◀ Stats Out</button>
+              <button class="cue-btn cue-in" id="btnCueStatsIn">▶ Stats In</button>
+              <button class="cue-btn cue-out is-active" id="btnCueStatsOut">◀ Stats Out</button>
               <span id="cueBadgeStats" class="cue-badge hidden">○ HIDDEN</span>
             </div>
             <label class="switch">
@@ -1743,6 +1817,7 @@
       if (clockRunning) return;
       clockRunning = true;
       els.ctrlClockPulse.classList.add("running");
+      updateCueStatusBadges();
       const stepMs = 1000 / clockSpeed;
       clockInterval = setInterval(() => {
         clockSeconds += state.direction;
@@ -1758,6 +1833,7 @@
       els.ctrlClockPulse.classList.remove("running");
       clearInterval(clockInterval);
       clockInterval = null;
+      updateCueStatusBadges();
       log("Clock paused at " + state.timeDisplay);
     }
 
@@ -1765,6 +1841,7 @@
       pauseClock();
       clockSeconds = parseMmSs(state.startTime);
       syncClockToUI();
+      updateCueStatusBadges();
       log("Clock reset to startTime (" + state.startTime + ")");
     }
 
@@ -1858,17 +1935,80 @@
       };
     }
 
+    function isTriggerActive(name) {
+      const k = (name || "").toLowerCase().trim();
+      if (k.includes("score in") || k === "score_in") return Boolean(state.cueScore);
+      if (k.includes("score out") || k === "score_out") return !state.cueScore;
+      if (k.includes("timer in") || k === "timer_in") return Boolean(state.cueTimer);
+      if (k.includes("timer out") || k === "timer_out") return !state.cueTimer;
+      if (k.includes("extra in") || k === "extra_in") return Boolean(state.cueExtra);
+      if (k.includes("extra out") || k === "extra_out") return !state.cueExtra;
+      if (k.includes("stats in") || k === "stats_in") return Boolean(state.cueStats);
+      if (k.includes("stats out") || k === "stats_out") return !state.cueStats;
+      if (k === "start") return Boolean(clockRunning);
+      if (k === "pause") return !clockRunning && clockSeconds > 0;
+      return false;
+    }
+
     function updateCueStatusBadges() {
-      const updateOne = (id, on) => {
-        const el = $(id);
-        if (!el) return;
-        el.textContent = on ? "● ON AIR" : "○ HIDDEN";
-        el.className = "cue-badge " + (on ? "on-air" : "hidden");
+      const updateOne = (badgeId, btnInId, btnOutId, isOn) => {
+        const badge = $(badgeId);
+        if (badge) {
+          badge.textContent = isOn ? "● ON AIR" : "○ HIDDEN";
+          badge.className = "cue-badge " + (isOn ? "on-air" : "hidden");
+        }
+        const btnIn = $(btnInId);
+        if (btnIn) {
+          btnIn.classList.toggle("is-active", Boolean(isOn));
+          btnIn.classList.toggle("cue-in", true);
+        }
+        const btnOut = $(btnOutId);
+        if (btnOut) {
+          btnOut.classList.toggle("is-active", !isOn);
+          btnOut.classList.toggle("cue-out", true);
+        }
       };
-      updateOne("cueBadgeScore", state.cueScore);
-      updateOne("cueBadgeTimer", state.cueTimer);
-      updateOne("cueBadgeExtra", state.cueExtra);
-      updateOne("cueBadgeStats", state.cueStats);
+
+      updateOne("cueBadgeScore", "btnCueScoreIn", "btnCueScoreOut", state.cueScore);
+      updateOne("cueBadgeTimer", "btnCueTimerIn", "btnCueTimerOut", state.cueTimer);
+      updateOne("cueBadgeExtra", "btnCueExtraIn", "btnCueExtraOut", state.cueExtra);
+      updateOne("cueBadgeStats", "btnCueStatsIn", "btnCueStatsOut", state.cueStats);
+
+      // Clock active states: Only highlight when running or paused
+      const btnStart = $("btnClockStart");
+      if (btnStart) btnStart.classList.toggle("is-active", Boolean(clockRunning));
+      const btnPause = $("btnClockPause");
+      if (btnPause) btnPause.classList.toggle("is-active", !clockRunning && clockSeconds > 0);
+
+      // Master Take button tally
+      const btnTake = $("btnTake");
+      if (btnTake) btnTake.classList.toggle("is-active", Boolean(state.cueScore && state.cueTimer));
+      const btnTakeOut = $("btnTakeOut");
+      if (btnTakeOut) btnTakeOut.classList.toggle("is-active", Boolean(!state.cueScore && !state.cueTimer && !state.cueExtra && !state.cueStats));
+
+      // Extra time chips: ONLY currently selected chip is active
+      document.querySelectorAll(".extra-time-chips .chip").forEach(chip => {
+        chip.classList.toggle("is-active", chip.dataset.et === (state.extraTime || ""));
+      });
+
+      // Period buttons active state
+      const is1st = state.startTime === "00:00" && state.targetEndTime === "45:00";
+      const is2nd = state.startTime === "45:00" && state.targetEndTime === "90:00";
+      const isET1 = state.startTime === "90:00" && state.targetEndTime === "105:00";
+      const isET2 = state.startTime === "105:00" && state.targetEndTime === "120:00";
+      const p1 = $("btnPeriod1st"); if (p1) p1.classList.toggle("is-active", is1st);
+      const p2 = $("btnPeriod2nd"); if (p2) p2.classList.toggle("is-active", is2nd);
+      const pe1 = $("btnPeriodET1"); if (pe1) pe1.classList.toggle("is-active", isET1);
+      const pe2 = $("btnPeriodET2"); if (pe2) pe2.classList.toggle("is-active", isET2);
+
+      // Dynamic trigger buttons: ONLY matching active state gets color
+      document.querySelectorAll("[data-trig-btn]").forEach(btn => {
+        const name = btn.dataset.trigBtn;
+        const active = isTriggerActive(name);
+        btn.classList.toggle("is-active", active);
+        btn.classList.toggle("cue-in", active && /in|start|continue/i.test(name));
+        btn.classList.toggle("cue-out", active && /out|pause|reset/i.test(name));
+      });
     }
 
     // ── Update HTML Graphic Preview ──
@@ -1970,6 +2110,10 @@
       els.sliderPoss.value = state.homePossession;
       els.inputHomeShot.value = state.homeShot;
       els.inputAwayShot.value = state.awayShot;
+
+      document.querySelectorAll("[data-preset]").forEach(chip => {
+        chip.classList.toggle("is-active", chip.dataset.preset === id);
+      });
 
       updateHtmlGraphic();
       log("Loaded preset " + p.home + " vs " + p.away);
@@ -2362,33 +2506,28 @@
         triggers = ["Score In", "Score Out", "Timer In", "Timer Out", "Extra In", "Extra Out", "Stats In", "Stats Out", "start", "pause", "continue", "resetTime"];
       }
 
-      container.innerHTML = triggers.map(name => {
+      const makeBtn = (name, icon) => {
         const boundAction = mapping[name] && mapping[name].action;
         const boundBadge = boundAction && boundAction !== name
           ? `<span style="opacity:0.85; font-size:9px; background:rgba(0,0,0,0.45); padding:1px 5px; border-radius:4px; margin-left:4px; font-weight:600; border:1px solid rgba(255,255,255,0.15);">➔ ${escapeXml(boundAction)}</span>`
           : "";
-        const cls = /in|start|continue|show|reveal/i.test(name) ? "success" : /out|pause|reset|hide/i.test(name) ? "danger" : "ghost";
-        return `<button class="cue-btn ${cls}" data-trig-btn="${escapeAttr(name)}" style="min-height:36px; padding:7px 14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Fire trigger '${escapeAttr(name)}' in Rive preview">
-          <span>⚡</span> <span>${escapeXml(name)}</span> ${boundBadge}
+        const active = isTriggerActive(name);
+        const inOutCls = active ? (/in|start|continue/i.test(name) ? "cue-in" : "cue-out") : "";
+        const activeCls = active ? "is-active " + inOutCls : "";
+        return `<button class="cue-btn ${activeCls}" data-trig-btn="${escapeAttr(name)}" style="min-height:36px; padding:7px 14px; font-size:12px; font-weight:600; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Fire trigger '${escapeAttr(name)}' in Rive preview">
+          <span>${icon}</span> <span>${escapeXml(name)}</span> ${boundBadge}
         </button>`;
-      }).join("");
+      };
+
+      container.innerHTML = triggers.map(name => makeBtn(name, "⚡")).join("");
 
       if (cuesContainer) {
         cuesContainer.innerHTML = `
           <div style="font-size:11px; text-transform:uppercase; color:var(--muted); margin:14px 0 8px; font-weight:700; display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
             <span>⚡ Rive Template Triggers (${triggers.length})</span>
-            <span style="font-size:10px; color:var(--pl-neon); font-weight:600;">Animates in Rive Preview</span>
+            <span style="font-size:10px; color:var(--muted); font-weight:600;">Animates in Rive Preview</span>
           </div>
-          <div class="btnrow" style="flex-wrap:wrap; gap:6px;">${triggers.map(name => {
-            const boundAction = mapping[name] && mapping[name].action;
-            const boundBadge = boundAction && boundAction !== name
-              ? `<span style="opacity:0.85; font-size:9px; background:rgba(0,0,0,0.45); padding:1px 5px; border-radius:4px; font-weight:600; border:1px solid rgba(255,255,255,0.15);">➔ ${escapeXml(boundAction)}</span>`
-              : "";
-            const cls = /in|start|continue/i.test(name) ? "success" : /out|pause|reset/i.test(name) ? "danger" : "ghost";
-            return `<button class="cue-btn ${cls}" data-trig-btn="${escapeAttr(name)}" style="min-height:36px; padding:7px 14px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" title="Fire '${escapeAttr(name)}' in Rive preview">
-              <span>▶</span> <span>${escapeXml(name)}</span> ${boundBadge}
-            </button>`;
-          }).join("")}</div>
+          <div class="btnrow" style="flex-wrap:wrap; gap:6px;">${triggers.map(name => makeBtn(name, "▶")).join("")}</div>
         `;
       }
     }
@@ -3431,8 +3570,12 @@
         const name = btn.dataset.trigBtn || btn.dataset.fireTrig;
         if (!name) return;
 
-        btn.style.transform = "scale(0.92)";
-        setTimeout(() => { btn.style.transform = ""; }, 150);
+        btn.classList.add("flash-active");
+        btn.style.transform = "scale(0.94)";
+        setTimeout(() => {
+          btn.classList.remove("flash-active");
+          btn.style.transform = "";
+        }, 180);
 
         fireTrigger(name);
       });
