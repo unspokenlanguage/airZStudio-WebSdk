@@ -1,0 +1,1201 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>airZ · TJK Yarış Masası</title>
+
+  <!--
+    TJK YARIŞ MASASI — a plain-HTML control desk on the airZ Web SDK that drives
+    the TJK L-frame graphic (tjk.riv) in a Controller rundown item.
+
+    OPTION C: the whole SDK is one browser global (window.Airz). No bundler.
+        cd sdk && npm run build        regenerates dist/airz-sdk.global.min.js
+    Serve the repo root over HTTP:  npx serve .   →
+        http://localhost:3000/examples/tjk-race-desk/
+
+    THE DATA CONTRACT (tjk/DATA.md), confirmed against the Controller source:
+      • Nested view-model fields are flat keys joined by "/":  race/city,
+        runnerA/name, dial/progress.
+      • List rows are flat keys name[i]/field:  order[3]/siralama, splits[2]/time.
+        The engine reads a changed list as the WHOLE list and trims it to the
+        highest index it receives — so a changed list is always sent in full.
+      • PATCH /items/{id}/data MERGES (never replaces), so a list can GROW but
+        not SHRINK. Every list is therefore FIXED-LENGTH with a `show` flag per
+        row (1 drawn, 0 hidden); unused rows are sent with show=0.
+      • A list number cell arrives typed "string" unless pre-wrapped, so number
+        cells go as {type:"number",value:n}; colour cells as {type:"color",...}.
+      • Enums (frame, track) are a plain string = the option's exact name.
+      • Triggers go through items.trigger() — /data drops trigger keys.
+      • Cue / live: setData({mode:"staged"}) prepares; pushStaged() takes it live.
+  -->
+  <script src="../../sdk/dist/airz-sdk.global.min.js"></script>
+
+  <style>
+    :root {
+      --bg:#0c0d11; --panel:#15161c; --panel2:#111218; --rail:#0f1015;
+      --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.14);
+      --text:#eef0f4; --muted:#8b92a0; --faint:#5b616d;
+      --accent:#39d98a; --accent2:#4aa8ff; --amber:#ffb020; --danger:#ff5d5d;
+      --row:#1a1c23; --rowsel:#223047;
+    }
+    * { box-sizing:border-box; }
+    html,body { height:100%; }
+    body {
+      margin:0; background:var(--bg); color:var(--text);
+      font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      display:flex; flex-direction:column; height:100vh; overflow:hidden;
+    }
+    button { font-family:inherit; cursor:pointer; }
+    .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
+
+    /* ---- top bar ---- */
+    .topbar {
+      display:flex; align-items:center; gap:10px; padding:8px 14px;
+      background:var(--panel); border-bottom:1px solid var(--border); flex:0 0 auto;
+    }
+    .topbar h1 { font-size:14px; margin:0; letter-spacing:.4px; white-space:nowrap; }
+    .pill {
+      font-size:11px; padding:4px 10px; border-radius:999px;
+      border:1px solid var(--border2); color:var(--muted); display:inline-flex;
+      align-items:center; gap:6px; white-space:nowrap;
+    }
+    .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--faint); }
+    .pill.ok .dot { background:var(--accent); } .pill.ok { color:var(--accent); border-color:rgba(57,217,138,.35); }
+    .pill.err .dot { background:var(--danger); } .pill.err { color:var(--danger); border-color:rgba(255,93,93,.35); }
+    .spacer { flex:1; }
+    .seg { display:inline-flex; border:1px solid var(--border2); border-radius:9px; overflow:hidden; }
+    .seg button { background:transparent; border:0; color:var(--muted); padding:6px 14px; font-size:12px; font-weight:700; letter-spacing:.3px; }
+    .seg button.on { background:var(--accent2); color:#04121f; }
+    .seg.live button.on { background:var(--danger); color:#1a0000; }
+    .air { font-size:11px; padding:5px 11px; border-radius:999px; border:1px solid var(--border2); color:var(--faint); font-weight:700; letter-spacing:.5px; }
+    .air.on { background:var(--danger); color:#fff; border-color:transparent; }
+    .iconbtn { background:var(--panel2); border:1px solid var(--border2); color:var(--text); border-radius:9px; padding:6px 10px; font-size:12px; }
+    .iconbtn:hover { border-color:var(--accent2); }
+
+    /* ---- layout ---- */
+    .body { flex:1 1 auto; display:grid; grid-template-columns:230px 1fr 360px; min-height:0; }
+    .col { min-height:0; overflow:auto; }
+    .rail { background:var(--rail); border-right:1px solid var(--border); padding:12px; }
+    .center { padding:14px 16px; }
+    .right { background:var(--panel2); border-left:1px solid var(--border); padding:12px; }
+    .foot {
+      flex:0 0 auto; display:grid; grid-template-columns:200px 1fr 220px; gap:16px;
+      padding:12px 16px; background:var(--panel); border-top:1px solid var(--border); align-items:center;
+    }
+    @media (max-width:1180px){ .body{ grid-template-columns:200px 1fr; } .right{ display:none; } }
+
+    h2.sec { font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--faint); margin:0 0 8px; font-weight:800; }
+
+    /* ---- program rail ---- */
+    .daylbl { font-size:14px; font-weight:800; margin:2px 0 12px; }
+    .trackgrp { margin-bottom:12px; }
+    .trackname { font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:0 0 5px; font-weight:700; }
+    .race { display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:8px; cursor:pointer; color:var(--text); }
+    .race:hover { background:var(--row); }
+    .race.sel { background:var(--rowsel); outline:1px solid rgba(74,168,255,.4); }
+    .race .rno { width:18px; text-align:center; font-weight:800; color:var(--accent2); }
+    .race .rtime { width:40px; color:var(--muted); }
+    .race .rstate { margin-left:auto; font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.4px; }
+    .race.done .rstate { color:var(--faint); } .race.sel .rstate { color:var(--accent); }
+
+    /* ---- race header + table ---- */
+    .rhead { display:flex; align-items:baseline; gap:10px; margin-bottom:2px; }
+    .rhead h3 { margin:0; font-size:20px; letter-spacing:.3px; }
+    .rhead .rt { color:var(--muted); font-size:13px; }
+    .rcond { color:var(--muted); font-size:12px; margin-bottom:12px; }
+    table.runners { width:100%; border-collapse:collapse; font-size:12.5px; }
+    table.runners th { text-align:left; color:var(--faint); font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.5px; padding:0 8px 7px; border-bottom:1px solid var(--border); }
+    table.runners td { padding:7px 8px; border-bottom:1px solid rgba(255,255,255,.04); }
+    table.runners tr { cursor:pointer; }
+    table.runners tbody tr:hover { background:var(--row); }
+    table.runners tr.sel { background:var(--rowsel); }
+    table.runners tr.scratched td { color:var(--faint); }
+    table.runners tr.scratched .kosmaz { color:var(--danger); font-size:11px; margin-left:6px; }
+    .cloth { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:5px; font-weight:800; font-size:12px; vertical-align:middle; }
+    td.at .nm { font-weight:600; }
+    td.at .eq { color:var(--faint); font-size:10px; margin-left:6px; letter-spacing:.3px; }
+    td.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+    /* ---- right: preview + layer controls ---- */
+    .pvwrap { position:relative; width:100%; border-radius:10px; overflow:hidden; background:#07080b; border:1px solid var(--border); aspect-ratio:16/9; margin-bottom:6px; }
+    .pvwrap iframe, .pvwrap canvas { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; }
+    .pvnote { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--muted); font-size:12px; padding:18px; }
+    .lrow { display:grid; grid-template-columns:76px 1fr auto; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+    .lrow .lbl { color:var(--muted); font-size:12px; }
+    .lrow .ctr { display:flex; gap:6px; flex-wrap:wrap; }
+    .lrow .st { font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.4px; min-width:66px; text-align:right; }
+    .st.in { color:var(--accent); } .st.prep { color:var(--amber); } .st.out { color:var(--faint); }
+    .b { padding:5px 9px; border-radius:7px; border:1px solid var(--border2); background:var(--row); color:var(--text); font-size:11.5px; font-weight:700; }
+    .b:hover { border-color:var(--accent2); }
+    .b.on { background:var(--accent); color:#06231a; border-color:transparent; }
+    .b.amber.on { background:var(--amber); color:#241700; }
+    .b.red { color:var(--danger); } .b.red.on { background:var(--danger); color:#fff; }
+    .b.sm { padding:4px 8px; font-size:11px; }
+
+    /* ---- footer race strip ---- */
+    .bigbtn { width:100%; padding:11px; border-radius:10px; border:1px solid var(--border2); background:var(--row); color:var(--text); font-weight:800; font-size:13px; letter-spacing:.4px; }
+    .bigbtn.go { background:linear-gradient(180deg,#143a28,#0f2e1f); border-color:rgba(57,217,138,.4); color:var(--accent); }
+    .bigbtn.go.running { background:var(--accent); color:#06231a; }
+    .bigbtn + .bigbtn { margin-top:8px; }
+    .progwrap { }
+    .proglbl { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px; }
+    .progbar { height:9px; border-radius:999px; background:#0b0c10; border:1px solid var(--border); overflow:hidden; }
+    .progbar > i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .35s linear; }
+    .srtoks { display:flex; gap:5px; margin-top:9px; flex-wrap:wrap; }
+    .srtok { width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; }
+    .splits { font-size:11px; color:var(--muted); }
+    .splits .shd { color:var(--faint); text-transform:uppercase; letter-spacing:.5px; font-size:10px; margin-bottom:4px; }
+    .splits .srow { display:flex; justify-content:space-between; font-variant-numeric:tabular-nums; padding:1px 0; }
+
+    /* ---- connection drawer ---- */
+    .drawer { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-start; justify-content:center; z-index:30; }
+    .drawer.show { display:flex; }
+    .sheet { margin-top:52px; width:min(560px,94vw); background:var(--panel); border:1px solid var(--border2); border-radius:14px; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.5); max-height:84vh; overflow:auto; }
+    .sheet h2 { margin:0 0 12px; font-size:15px; }
+    .field { margin:9px 0; } .field label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:4px; }
+    .field input, .field select { width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border2); background:#0e0f14; color:var(--text); font-size:13px; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    .drawrow { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+    .primary { background:var(--accent); color:#06231a; border:0; padding:9px 16px; border-radius:9px; font-weight:800; }
+    .ghost { background:transparent; border:1px solid var(--border2); color:var(--text); padding:9px 16px; border-radius:9px; font-weight:700; }
+    .hint { color:var(--faint); font-size:11.5px; margin-top:8px; line-height:1.5; }
+    .range { display:flex; align-items:center; gap:8px; } .range input[type=range]{ flex:1; }
+
+    /* ---- activity log ---- */
+    .log { margin-top:10px; max-height:120px; overflow:auto; font:11px/1.5 ui-monospace,Menlo,Consolas,monospace; color:var(--muted); background:#0a0b0e; border:1px solid var(--border); border-radius:8px; padding:8px; }
+    .log .t { color:var(--accent2); } .log .e { color:var(--danger); } .log .w { color:var(--amber); }
+    .kbd { color:var(--faint); font-size:11px; }
+    .kbd b { color:var(--muted); font-weight:700; }
+  </style>
+</head>
+<body>
+  <!-- ===================== TOP BAR ===================== -->
+  <div class="topbar">
+    <h1>🏇 TJK Yarış Masası</h1>
+    <span id="conn" class="pill"><span class="dot"></span><span id="connText">bağlı değil</span></span>
+    <span id="itemPill" class="pill">Öğe: —</span>
+    <div class="seg" id="airSeg">
+      <button data-air="hazirla" class="on">HAZIRLA</button>
+      <button data-air="canli">CANLI</button>
+    </div>
+    <span id="readyPill" class="pill">Hazır değil</span>
+    <span class="spacer"></span>
+    <span class="kbd">Space TAKE · Esc ÇIK · ↑↓ at · Enter karta al · B başlat · N bitir</span>
+    <span id="onairPill" class="air">● YAYIN DIŞI</span>
+    <button class="iconbtn" id="btnSettings">⚙ Bağlantı</button>
+  </div>
+
+  <!-- ===================== BODY ===================== -->
+  <div class="body">
+    <!-- PROGRAM RAIL -->
+    <div class="col rail">
+      <h2 class="sec">Program</h2>
+      <div id="dayLbl" class="daylbl">—</div>
+      <div id="program"></div>
+    </div>
+
+    <!-- CENTER: race + runners -->
+    <div class="col center">
+      <div class="rhead">
+        <h3 id="rName">—</h3>
+        <span id="rTime" class="rt"></span>
+      </div>
+      <div id="rCond" class="rcond"></div>
+      <table class="runners">
+        <thead><tr>
+          <th style="width:30px">No</th><th>At</th><th style="width:110px">Jokey</th>
+          <th style="width:44px">Kilo</th><th style="width:34px">St</th>
+          <th style="width:54px">AGF</th><th style="width:60px">Ganyan</th>
+        </tr></thead>
+        <tbody id="runnerBody"></tbody>
+      </table>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- RIGHT: preview + layer controls -->
+    <div class="col right">
+      <h2 class="sec">Önizleme · gerçek sahne</h2>
+      <div class="pvwrap">
+        <iframe id="pvFrame" title="interactive preview" style="display:none"></iframe>
+        <canvas id="pvCanvas" width="1280" height="720" style="display:none"></canvas>
+        <div id="pvNote" class="pvnote">Bağlanınca Controller'ın <b>/interactive</b> sayfası burada canlı görünür.</div>
+      </div>
+
+      <h2 class="sec" style="margin-top:12px">Katmanlar</h2>
+      <div id="layers"></div>
+
+      <h2 class="sec" style="margin-top:14px">Simülasyon</h2>
+      <div class="lrow"><span class="lbl">Ganyan</span>
+        <div class="ctr"><button class="b sm" id="simOdds">Oynat</button>
+          <div class="range" style="flex:1"><input type="range" id="simSpeed" min="2" max="12" value="7"></div></div>
+        <span class="st" id="simOddsSt">durdu</span></div>
+      <div class="lrow"><span class="lbl">Otomatik tur</span>
+        <div class="ctr"><button class="b sm" id="simCycle">Başlat</button></div>
+        <span class="st" id="simCycleSt">kapalı</span></div>
+      <div class="lrow"><span class="lbl">Olaylar</span>
+        <div class="ctr">
+          <button class="b sm" id="evJockey">Jokey değ.</button>
+          <button class="b sm" id="evScratch">Koşmaz</button>
+          <button class="b sm red" id="evPhoto">Foto-finiş</button>
+        </div><span class="st"></span></div>
+      <div class="lrow"><span class="lbl">Senaryo</span>
+        <div class="ctr"><button class="b sm" id="btnSenaryo">▶ ~2 dk showcase</button></div>
+        <span class="st" id="senaryoSt"></span></div>
+    </div>
+  </div>
+
+  <!-- ===================== FOOTER RACE STRIP ===================== -->
+  <div class="foot">
+    <div>
+      <button class="bigbtn go" id="btnStart">BAŞLAT ▶</button>
+      <button class="bigbtn" id="btnFinish">BİTİR · SONUÇ</button>
+    </div>
+    <div class="progwrap">
+      <div class="proglbl"><span>İLERLEME · <span id="distLbl">—</span> · <span id="simMode">sıralama</span></span>
+        <span id="remLbl"></span></div>
+      <div class="progbar"><i id="progFill"></i></div>
+      <div class="srtoks" id="srToks"></div>
+    </div>
+    <div class="splits">
+      <div class="shd">Ara Dereceler</div>
+      <div id="splitRows"></div>
+      <div class="drawrow" style="margin-top:8px">
+        <button class="b sm red" id="btnProtest">PROTESTO</button>
+        <button class="b sm" id="btnOfficial">KESİNLEŞTİR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CONNECTION DRAWER ===================== -->
+  <div class="drawer" id="drawer">
+    <div class="sheet">
+      <h2>Bağlantı &amp; Ayarlar</h2>
+      <div class="field"><label>Controller URL</label><input id="baseUrl" placeholder="http://localhost:3467"></div>
+      <div class="grid2">
+        <div class="field"><label>Kullanıcı</label><input id="username" placeholder="admin"></div>
+        <div class="field"><label>Parola</label><input id="password" type="password" placeholder="parola"></div>
+      </div>
+      <div class="drawrow">
+        <button class="primary" id="btnConnect">Bağlan</button>
+        <button class="ghost" id="btnDisconnect">Kes</button>
+      </div>
+      <div class="field"><label>Rundown</label><select id="rundownSel"><option value="">— önce bağlan —</option></select></div>
+      <div class="field"><label>Öğe (TJK L-frame)</label><select id="itemSel"><option value="">—</option></select></div>
+      <h2 style="margin:16px 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Sahne ayarları</h2>
+      <div class="grid3">
+        <div class="field"><label>Pist (track)</label>
+          <select id="setTrack"><option>istanbul</option><option>ankara</option><option>izmir</option><option>adana</option><option selected>bursa</option></select></div>
+        <div class="field"><label>Yan panel</label>
+          <select id="setSide"><option value="0">Sabit</option><option value="1">İlk 2/3/4</option><option value="2">Kapalı</option></select></div>
+        <div class="field"><label>Saat (clockLive)</label>
+          <select id="setClock"><option value="1">Canlı</option><option value="0">Elle</option></select></div>
+      </div>
+      <div class="field"><label>Sponsor</label><input id="setSponsor" value="airZ Studio"></div>
+      <div class="field"><label>Video kaynağı (video)</label><input id="setVideo" placeholder="route://1-0 · decklink://0 · play://clip.mp4 LOOP"></div>
+      <div class="hint">Bağlantı yoksa masa <b>kuru çalışır</b>: gönderilecek veriler aşağıdaki kayıt panosuna yazılır ve önizleme için yerel <code>tjk.riv</code> yüklenir (katman/çerçeve/dial; listeler yalnızca Controller önizlemesinde tam görünür).</div>
+      <div class="drawrow"><button class="ghost" id="btnClose">Kapat</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var escapeHtml = function(s){ return String(s==null?"":s).replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];}); };
+
+  /* =========================================================================
+     1. SADDLE-CLOTH COLOURS  (TJK-standard by saddle number, 1..18)
+     ====================================================================== */
+  var CLOTHS = {
+    1:["#E2001A","#FFFFFF"], 2:["#FFFFFF","#111111"], 3:["#0057B7","#FFFFFF"],
+    4:["#FFD100","#111111"], 5:["#009639","#FFFFFF"], 6:["#1A1A1A","#FFFFFF"],
+    7:["#FF6A00","#111111"], 8:["#FF8DC7","#111111"], 9:["#16BCC4","#111111"],
+    10:["#7A4B23","#FFFFFF"], 11:["#7FB2FF","#111111"], 12:["#6B2FB3","#FFFFFF"],
+    13:["#9EA2A8","#111111"], 14:["#B5D000","#111111"], 15:["#004E3B","#FFFFFF"],
+    16:["#C0007A","#FFFFFF"], 17:["#2B2F77","#FFFFFF"], 18:["#D98300","#111111"]
+  };
+  var clothOf = function(no){ return CLOTHS[no] || ["#333842","#FFFFFF"]; };
+
+  /* =========================================================================
+     2. DEMO DATA  (a `source` adapter — swap for a licensed TJK feed later)
+        Race 1 Bursa is the tjk.org screenshot; the rest are generated.
+     ====================================================================== */
+  var RACE1 = [
+    // no, name, jockey, weight, gate(st), agf%, ganyan, equipment
+    [1,"SELLY SU","E.AKPINAR",55,2,12.4,5.30,"DB SK"],
+    [2,"SPRING CAT","Ö.F.ÖZEN",54,8,6.1,12.90,"SKG SK"],
+    [3,"YOU ARE GREAT","N.AVCI",57,10,14.8,5.15,"DB SK"],
+    [4,"SILA ALEYNA","T.YILDIZ",60,7,24.0,2.95,"KGK DB SK"],
+    [5,"SUNDAY BREAKFAST","G.ÖZÇELİK",57,9,8.2,8.55,"DB SK"],
+    [6,"WINDS SOUND","O.YILDIZ",57,11,3.9,18.30,"KG DB SK"],
+    [7,"AURORA NOVA","A.YILDIZ",57,6,26.1,2.70,"KGK"],
+    [8,"EYLÜL MASALI","C.ALTUN",57,5,1.5,48.15,"DB SK"],
+    [9,"QUEEN NİNA","C.PASO",57,3,2.0,34.15,"KGK DB"],
+    [10,"BİRPIRIL","İ.GÜREKE",54,4,3.0,23.65,"KG DB"],
+    [11,"MADAM NORA","M.M.BİLGİN",57,1,0,0,"",true]
+  ];
+  var HORSE_WORDS=["STAR","SULTAN","RÜZGAR","ŞİMŞEK","GECE","ALTIN","FIRTINA","ZAFER","EFSANE","KARTAL","ATEŞ","GÜNEŞ","DENİZ","MELTEM","VOLKAN","KADER","UMUT","ASLAN","PRENS","KRALİÇE"];
+  var JOCKEYS=["H.KARATAŞ","S.BOYRAZ","M.ÇELİK","A.ÇELİK","R.AKBAY","G.KAYA","K.ARSLAN","Y.POYRAZ","İ.YILDIRIM","E.DEMİR","O.TEKİN","B.AKTAŞ"];
+  var SIRES=["Victory Gallop","Sri Putra","Lion Heart","Natıve Khan","Mr Sydney","Eldaafer","Pan Theos"];
+  var DAMS=["Sunset","Lady Luck","Golden Mare","Night Star","Silver Belle","Wild Rose"];
+  var OWNERS=["A.YILMAZ","K.ÇELEBİ","S.DOĞAN","M.ERDEM","T.KAPLAN","H.ŞAHİN"];
+  var TRAINERS=["B.ÖZ","C.KURT","F.TUNA","D.ARI","N.GÜL"];
+
+  // deterministic PRNG so generated races are stable across reloads
+  function rng(seed){ var s=seed>>>0||1; return function(){ s^=s<<13; s^=s>>>17; s^=s<<5; return ((s>>>0)/4294967296); }; }
+
+  function makeRunner(no, rnd){
+    var agf = Math.round((1+rnd()*28)*10)/10;
+    var gan = Math.round((2+rnd()*46)*100)/100;
+    return {
+      no:no, name:(HORSE_WORDS[Math.floor(rnd()*HORSE_WORDS.length)]+" "+HORSE_WORDS[Math.floor(rnd()*HORSE_WORDS.length)]),
+      jockey:JOCKEYS[Math.floor(rnd()*JOCKEYS.length)], weight:54+Math.floor(rnd()*7), gate:no,
+      agf:agf, ganyan:gan, equip:["DB SK","KG DB","KGK","SK","DB"][Math.floor(rnd()*5)], scratched:false,
+      sireDam:SIRES[Math.floor(rnd()*SIRES.length)]+" / "+DAMS[Math.floor(rnd()*DAMS.length)],
+      ownerTrainer:OWNERS[Math.floor(rnd()*OWNERS.length)]+" · "+TRAINERS[Math.floor(rnd()*TRAINERS.length)]
+    };
+  }
+  function runnerFromRow(r){
+    return { no:r[0], name:r[1], jockey:r[2], weight:r[3], gate:r[4], agf:r[5], ganyan:r[6],
+      equip:r[7], scratched:!!r[8], sireDam:SIRES[r[0]%SIRES.length]+" / "+DAMS[r[0]%DAMS.length],
+      ownerTrainer:OWNERS[r[0]%OWNERS.length]+" · "+TRAINERS[r[0]%TRAINERS.length] };
+  }
+  function genRace(track, no, time, seed, nRunners, cond, dist){
+    var rnd=rng(seed), runners=[];
+    for(var i=1;i<=nRunners;i++) runners.push(makeRunner(i, rnd));
+    return { track:track, no:no, time:time, city:track.toUpperCase(),
+      conditions:cond, distanceSurface:dist, leftLabel:dist.split(" ")[0].toLowerCase(),
+      distance:parseInt(dist.replace(/[^\d]/g,""),10)||1400, runners:runners };
+  }
+
+  var PROGRAM = {
+    day:"12 Ekim 2026 Pazartesi",
+    groups:[
+      { track:"Bursa", races:[
+        { track:"bursa", no:1, time:"14:30", city:"BURSA", state:"sel",
+          conditions:"MAIDEN / DİŞİ · 2Y İNGİLİZ · 57 KG", distanceSurface:"1.400M ÇİM",
+          leftLabel:"1.400m", distance:1400, runners:RACE1.map(runnerFromRow) },
+        genRace("bursa",2,"15:00",22,12,"HANDİKAP 16 · 3Y+ · İNGİLİZ","1.600M ÇİM"),
+        genRace("bursa",3,"15:30",33,14,"ŞARTLI 4 · DİŞİ · ARAP","1.200M KUM"),
+        genRace("bursa",4,"16:00",44,11,"HANDİKAP 13 · 4Y+ · İNGİLİZ","2.000M ÇİM"),
+        genRace("bursa",5,"16:30",55,16,"MAIDEN · ERKEK · İNGİLİZ","1.400M ÇİM")
+      ]},
+      { track:"Şanlıurfa", races:[
+        genRaceDone("sanliurfa",1,"13:45",71,10),
+        genRaceDone("sanliurfa",2,"14:15",72,12)
+      ]}
+    ],
+    abroad:[
+      { time:"15:10", title:"Marseille · Kempton", current:1 },
+      { time:"15:45", title:"Roscommon · R4", current:0 },
+      { time:"16:20", title:"Chantilly · Prix", current:0 }
+    ]
+  };
+  function genRaceDone(track,no,time,seed,n){ var r=genRace(track,no,time,seed,n,"HANDİKAP · İNGİLİZ","1.600M KUM"); r.state="done"; return r; }
+
+  // the pluggable source adapter: today, the embedded demo; tomorrow, a feed.
+  var Source = { getProgram:function(){ return PROGRAM; } };
+
+  /* =========================================================================
+     3. SCENE STATE  →  flat wire map (the DATA.md contract)
+     ====================================================================== */
+  var LIST = { order:18, sideRunners:16, splits:8, abroad:8, exacta:11, pools:8 };
+
+  // logical scene state, mutated by the desk and the simulator
+  var scene = null;        // built by selectRace()
+  function freshScene(race, nextRace){
+    var runners = race.runners.filter(function(r){ return true; });
+    return {
+      race:{ city:race.city, raceNo:race.no+".KOŞU", conditions:race.conditions, distanceSurface:race.distanceSurface },
+      frame:"lframe", side:0, track:race.track, runnerSlot:0, clockLive:1,
+      sponsor:$("setSponsor").value||"airZ Studio", video:$("setVideo").value||"",
+      abroadTitle:"YRSTYZ YURT DIŞI", exactaTitle:"SIRALI 2'Lİ",
+      dial:{ progress:0, distance:race.distance, leftLabel:race.leftLabel },
+      runnerA:null, runnerB:null,
+      sideRace:nextRace ? { time:nextRace.time, venue:nextRace.city, surfaceDistance:nextRace.distanceSurface, raceNo:nextRace.no+".Koşu" } : { time:"",venue:"",surfaceDistance:"",raceNo:"" },
+      sideRunners:(nextRace?nextRace.runners:[]).slice(0,LIST.sideRunners),
+      exacta:[], pools:[],
+      results:{ order:"", time:"", margins:"", unofficialTitle:"MUHTEMEL NETİCELER", officialTitle:"KESİN SONUÇ" },
+      order:runners,            // the running order (saddle order); siralama tracked separately
+      siralama:{},              // no → place (1=lead)
+      splits:[],
+      runners:runners           // live runner objects (odds drift mutates these)
+    };
+  }
+
+  // value packers — number/colour cells must be pre-wrapped (see header)
+  function N(v){ return { type:"number", value:Number(v)||0 }; }
+  function C(v){ return { type:"color", value:String(v||"#000000") }; }
+
+  function runnerFields(d, slot, r){
+    if(!r){ return; }
+    d[slot+"/no"]=String(r.no);
+    d[slot+"/gate"]=String(r.gate);
+    d[slot+"/name"]=r.name;
+    d[slot+"/equipment"]=r.equip||"";
+    d[slot+"/jockey"]=r.jockey;
+    d[slot+"/weight"]=r.weight+"KG";
+    d[slot+"/apprentice"]=r.apprentice||"";
+    d[slot+"/sireDam"]=r.sireDam||"";
+    d[slot+"/ownerTrainer"]=r.ownerTrainer||"";
+    d[slot+"/agf"]=N(r.agf);
+    d[slot+"/agfLabel"]="%"+tr(r.agf,1);
+    d[slot+"/agfRank"]="("+agfRank(r)+")";
+    d[slot+"/sabit"]=tr(r.ganyan,2);
+    var cc=clothOf(r.no); d[slot+"/clothColor"]=C(cc[0]); d[slot+"/clothText"]=C(cc[1]);
+    d[slot+"/flash"]=N(r.flash||0);
+  }
+  function tr(n,dec){ var v=Number(n); if(!isFinite(v)) return String(n); return v.toFixed(dec).replace(".",","); }
+  function agfRank(r){
+    var live=scene.runners.filter(function(x){return !x.scratched;}).slice().sort(function(a,b){return b.agf-a.agf;});
+    var i=live.indexOf(r); return i<0?"-":(i+1);
+  }
+
+  // place odds derived from win odds (a plausible demo relation)
+  function placeOdds(gan){ var p=Math.max(1.05, 1+(gan-1)*0.42); return tr(p,2); }
+
+  function flatten(){
+    var d={}, i, r;
+    // header + top-level
+    d["race/city"]=scene.race.city; d["race/raceNo"]=scene.race.raceNo;
+    d["race/conditions"]=scene.race.conditions; d["race/distanceSurface"]=scene.race.distanceSurface;
+    d["frame"]=scene.frame; d["side"]=N(scene.side); d["track"]=scene.track;
+    d["runnerSlot"]=N(scene.runnerSlot); d["clockLive"]=N(scene.clockLive);
+    d["sponsor"]=scene.sponsor; d["video"]=scene.video||"";
+    d["abroadTitle"]=scene.abroadTitle; d["exactaTitle"]=scene.exactaTitle;
+    d["dial/progress"]=N(scene.dial.progress); d["dial/distance"]=N(scene.dial.distance); d["dial/leftLabel"]=scene.dial.leftLabel;
+    // runner cards
+    runnerFields(d,"runnerA",scene.runnerA);
+    runnerFields(d,"runnerB",scene.runnerB);
+    // side race
+    d["sideRace/time"]=scene.sideRace.time; d["sideRace/venue"]=scene.sideRace.venue;
+    d["sideRace/surfaceDistance"]=scene.sideRace.surfaceDistance; d["sideRace/raceNo"]=scene.sideRace.raceNo;
+    // results
+    d["results/order"]=scene.results.order; d["results/time"]=scene.results.time; d["results/margins"]=scene.results.margins;
+    d["results/unofficialTitle"]=scene.results.unofficialTitle; d["results/officialTitle"]=scene.results.officialTitle;
+
+    // ---- lists (always full, show=0 for unused) ----
+    var ord = scene.order;
+    for(i=0;i<LIST.order;i++){
+      var pre="order["+i+"]/", used = i<ord.length && !ord[i].scratched;
+      if(used){ r=ord[i]; var cc=clothOf(r.no);
+        d[pre+"no"]=String(r.no); d[pre+"clothColor"]=C(cc[0]); d[pre+"clothText"]=C(cc[1]);
+        d[pre+"siralama"]=N(scene.siralama[r.no]||(i+1)); d[pre+"show"]=N(1);
+      } else {
+        d[pre+"no"]=""; d[pre+"clothColor"]=C("#20242c"); d[pre+"clothText"]=C("#20242c");
+        d[pre+"siralama"]=N(i+1); d[pre+"show"]=N(0);   // unused rows keep n+1..18
+      }
+    }
+    var sr=scene.sideRunners;
+    for(i=0;i<LIST.sideRunners;i++){
+      var p2="sideRunners["+i+"]/";
+      if(i<sr.length){ r=sr[i]; var c2=clothOf(r.no);
+        d[p2+"no"]=String(r.no); d[p2+"name"]=r.name; d[p2+"clothColor"]=C(c2[0]); d[p2+"clothText"]=C(c2[1]);
+        d[p2+"trend"]=N(r.trend||0); d[p2+"sabit"]=tr(r.ganyan,2);
+        d[p2+"place2"]=placeOdds(r.ganyan); d[p2+"place3"]=placeOdds(r.ganyan*1.3); d[p2+"place4"]=placeOdds(r.ganyan*1.6);
+        d[p2+"flash"]=N(r.flash||0); d[p2+"show"]=N(1);
+      } else { d[p2+"no"]=""; d[p2+"name"]=""; d[p2+"clothColor"]=C("#20242c"); d[p2+"clothText"]=C("#20242c");
+        d[p2+"trend"]=N(0); d[p2+"sabit"]=""; d[p2+"place2"]=""; d[p2+"place3"]=""; d[p2+"place4"]=""; d[p2+"flash"]=N(0); d[p2+"show"]=N(0); }
+    }
+    for(i=0;i<LIST.splits;i++){ var p3="splits["+i+"]/";
+      if(i<scene.splits.length){ d[p3+"marker"]=scene.splits[i].marker; d[p3+"time"]=scene.splits[i].time; d[p3+"show"]=N(1); }
+      else { d[p3+"marker"]=""; d[p3+"time"]=""; d[p3+"show"]=N(0); } }
+    for(i=0;i<LIST.abroad;i++){ var p4="abroad["+i+"]/", ab=PROGRAM.abroad;
+      if(i<ab.length){ d[p4+"time"]=ab[i].time; d[p4+"title"]=ab[i].title; d[p4+"current"]=N(ab[i].current||0); d[p4+"show"]=N(1); }
+      else { d[p4+"time"]=""; d[p4+"title"]=""; d[p4+"current"]=N(0); d[p4+"show"]=N(0); } }
+    for(i=0;i<LIST.exacta;i++){ var p5="exacta["+i+"]/";
+      if(i<scene.exacta.length){ d[p5+"label"]=scene.exacta[i].label; d[p5+"value"]=scene.exacta[i].value; d[p5+"flash"]=N(scene.exacta[i].flash||0); }
+      else { d[p5+"label"]=""; d[p5+"value"]=""; d[p5+"flash"]=N(0); } }
+    for(i=0;i<LIST.pools;i++){ var p6="pools["+i+"]/";
+      if(i<scene.pools.length){ d[p6+"label"]=scene.pools[i].label; d[p6+"value"]=scene.pools[i].value; d[p6+"flash"]=N(scene.pools[i].flash||0); }
+      else { d[p6+"label"]=""; d[p6+"value"]=""; d[p6+"flash"]=N(0); } }
+    return d;
+  }
+
+  /* =========================================================================
+     4. SENDING  — diff against last sent (feed only what changed)
+     ====================================================================== */
+  var client=null, rid=0, iid=0, air="hazirla", onAir=false;
+  var lastSent={};
+  function packedEq(a,b){ return JSON.stringify(a)===JSON.stringify(b); }
+  function modeNow(){ return air==="canli" ? "live" : "staged"; }
+
+  function commit(){
+    var full=flatten(), diff={}, k;
+    for(k in full){ if(!packedEq(lastSent[k], full[k])) diff[k]=full[k]; }
+    lastSent=full;
+    var n=0; for(k in diff){ n++; }
+    if(!n) return;
+    sendData(diff);
+  }
+  // send a small explicit patch immediately (odds flash, dial frames) without
+  // re-diffing the whole scene — still records into lastSent so commit() agrees.
+  function sendPatch(obj){ for(var k in obj){ lastSent[k]=obj[k]; } sendData(obj); }
+
+  function sendData(obj){
+    var mode=modeNow();
+    if(!client || !rid || !iid){ dryLog(obj, mode); return; }
+    client.items.setData(rid, iid, obj, { mode:mode }).catch(function(e){ log("setData hata: "+emsg(e),"e"); });
+    feedLocalRive(obj);
+  }
+  function fire(name, opts){
+    opts=opts||{};
+    if(!client || !rid || !iid){ log("TETİK "+name+" ("+(opts.live?"canlı":modeNow())+") — kuru çalışma","w"); fireLocalRive(name); return Promise.resolve(); }
+    var q = opts.live ? {} : (air==="canli" ? {} : { mode:"staged" });
+    if(opts.flushStaged) q.flushStaged=true;
+    fireLocalRive(name);
+    return client.items.trigger(rid, iid, name, q).catch(function(e){ log("tetik hata "+name+": "+emsg(e),"e"); });
+  }
+  function emsg(e){ return e&&e.message?e.message:String(e); }
+  var dryCount=0;
+  function dryLog(obj, mode){
+    var keys=Object.keys(obj); dryCount+=keys.length;
+    var sample=keys.slice(0,4).join(", ")+(keys.length>4?(" +"+(keys.length-4)):"");
+    log("kuru ⇢ "+keys.length+" alan ["+mode+"]: "+escapeHtml(sample));
+    feedLocalRive(obj);
+  }
+
+  /* =========================================================================
+     5. CUE / LIVE  —  TAKE + per-layer control
+     ====================================================================== */
+  // Layer buttons stage data + fire their trigger. In HAZIRLA the trigger is
+  // staged (preview only) and remembered; the single TAKE (Space) promotes the
+  // staged data to air (pushStaged) and fires the pending trigger live.
+  var LAYERS = [
+    { key:"ekran",   lbl:"Ekran",     "in":"animateIn",      out:"animateOut" },
+    { key:"kart",    lbl:"At kartı",  "in":"runnerIn",       out:"runnerOut", special:"card" },
+    { key:"exacta",  lbl:"Sıralı 2'li","in":"exactaIn",      out:"exactaOut" },
+    { key:"pools",   lbl:"Havuz",     "in":"poolsIn",        out:"poolsOut" },
+    { key:"results", lbl:"Sonuç",     "in":"resultsIn",      out:"resultsOut" },
+    { key:"protest", lbl:"Protesto",  "in":"protestIn",      out:"protestOut", badge:true }
+  ];
+  var layerState={};   // key → "out" | "prep" | "in"
+  var pendingTriggers=[];  // triggers queued for TAKE in HAZIRLA
+
+  function renderLayers(){
+    var html="";
+    LAYERS.forEach(function(L){
+      var st=layerState[L.key]||"out";
+      html+='<div class="lrow"><span class="lbl">'+escapeHtml(L.lbl)+'</span><div class="ctr">';
+      if(L.special==="card"){
+        html+='<button class="b '+(st==="in"?"on":st==="prep"?"amber on":"")+'" data-layer="'+L.key+'" data-act="in">KARTA AL</button>';
+        html+='<button class="b sm" data-layer="'+L.key+'" data-act="cycle">⟳</button>';
+        html+='<button class="b sm" data-layer="'+L.key+'" data-act="out">ÇIK</button>';
+      } else if(L.badge){
+        html+='<button class="b red '+(st==="in"?"on":"")+'" data-layer="'+L.key+'" data-act="badge">ROZET</button>';
+        html+='<button class="b red" data-layer="'+L.key+'" data-act="in">BANT</button>';
+        html+='<button class="b sm" data-layer="'+L.key+'" data-act="out">ÇIK</button>';
+      } else if(L.key==="results"){
+        html+='<button class="b '+(st==="in"?"on":st==="prep"?"amber on":"")+'" data-layer="'+L.key+'" data-act="in">MUHTEMEL</button>';
+        html+='<button class="b" data-layer="'+L.key+'" data-act="official">KESİN</button>';
+        html+='<button class="b sm" data-layer="'+L.key+'" data-act="out">ÇIK</button>';
+      } else {
+        html+='<button class="b '+(st==="in"?"on":st==="prep"?"amber on":"")+'" data-layer="'+L.key+'" data-act="in">'+(L.key==="ekran"?"GİR":"GİR")+'</button>';
+        if(L.key==="ekran") html+='<button class="b sm" data-layer="'+L.key+'" data-act="frame">Çerçeve</button>';
+        html+='<button class="b sm" data-layer="'+L.key+'" data-act="out">ÇIK</button>';
+      }
+      html+='</div><span class="st '+(st==="in"?"in":st==="prep"?"prep":"out")+'" id="st_'+L.key+'">'+
+        (st==="in"?"yayında":st==="prep"?"hazır":"kapalı")+'</span></div>';
+    });
+    $("layers").innerHTML=html;
+  }
+
+  function layerAction(key, act){
+    var L=LAYERS.filter(function(x){return x.key===key;})[0]; if(!L) return;
+    if(act==="frame"){ toggleFrame(); return; }
+    if(act==="cycle"){ cycleCard(); return; }
+    if(act==="out"){ triggerLayer(L, L.out, "out"); return; }
+    if(act==="official"){ fire("resultsOfficial", {live:air==="canli"}); layerState.results="in"; log("KESİN SONUÇ"); renderLayers(); return; }
+    if(act==="badge"){ triggerLayer(L, "protestBadgeIn", "in"); return; }
+    if(act==="in"||act==="card"){
+      // prepare the layer's data first (card fills the runner slot)
+      if(key==="kart") prepCard();
+      if(key==="exacta") buildExacta();
+      if(key==="pools") buildPools();
+      commit();
+      triggerLayer(L, L["in"], "in");
+      return;
+    }
+  }
+  function triggerLayer(L, name, newState){
+    if(air==="canli"){
+      fire(name, {live:true}); layerState[L.key]=newState;
+      log((newState==="in"?"▶ ":"◀ ")+L.lbl+" "+(newState==="in"?"YAYINDA":"ÇIKTI"));
+    } else {
+      fire(name, {}); // staged preview
+      layerState[L.key]= newState==="out" ? "out" : "prep";
+      if(newState!=="out") pendingTriggers.push(name);
+      log("⏸ "+L.lbl+" hazırlandı — TAKE ile yayına");
+    }
+    renderLayers();
+  }
+
+  async function take(){
+    if(air==="canli"){ log("CANLI modda TAKE gereksiz — her şey zaten yayında","w"); return; }
+    if(client && rid && iid){ try{ await client.items.pushStaged(rid, iid); }catch(e){ log("pushStaged hata: "+emsg(e),"e"); } }
+    lastSent=flatten(); // staged data is now live-committed
+    var t=pendingTriggers.slice(); pendingTriggers=[];
+    for(var i=0;i<t.length;i++){ await fire(t[i], {live:true}); }
+    // promote prep → in
+    LAYERS.forEach(function(L){ if(layerState[L.key]==="prep") layerState[L.key]="in"; });
+    onAir=true; setOnAir(true);
+    log("✦ TAKE — hazırlanan veri + "+t.length+" tetik yayına verildi");
+    renderLayers();
+  }
+  function takeOutAll(){
+    fire("animateOut", {live:air==="canli"});
+    Object.keys(layerState).forEach(function(k){ layerState[k]="out"; });
+    onAir=false; setOnAir(false);
+    log("◀◀ animateOut — tüm grafik yayından çıktı");
+    renderLayers();
+  }
+
+  function toggleFrame(){
+    scene.frame = scene.frame==="lframe" ? "race" : "lframe";
+    commit();
+    log("Çerçeve → "+(scene.frame==="race"?"YARIŞ":"L-FRAME"));
+    renderLayers();
+  }
+
+  /* =========================================================================
+     6. RUNNER CARDS  (A/B crawl)
+     ====================================================================== */
+  var selRunnerIdx=0;
+  function liveRunners(){ return scene.runners.filter(function(r){ return !r.scratched; }); }
+  function prepCard(){
+    var lr=liveRunners(); if(!lr.length) return;
+    var r=lr[Math.min(selRunnerIdx, lr.length-1)];
+    // first card goes into A; subsequent go into the hidden slot and we flip
+    if(!scene.runnerA && !scene.runnerB){ scene.runnerA=r; scene.runnerSlot=0; }
+    else { if(scene.runnerSlot===0){ scene.runnerB=r; } else { scene.runnerA=r; } }
+  }
+  function cardCrawlTo(r){
+    if(scene.runnerSlot===0){ scene.runnerB=r; scene.runnerSlot=1; } else { scene.runnerA=r; scene.runnerSlot=0; }
+    commit();
+  }
+  function cycleCard(){
+    var lr=liveRunners(); if(!lr.length) return;
+    selRunnerIdx=(selRunnerIdx+1)%lr.length;
+    highlightRunner();
+    cardCrawlTo(lr[selRunnerIdx]);
+    log("⟳ kart → "+lr[selRunnerIdx].name);
+  }
+
+  /* =========================================================================
+     7. ODDS / EXACTA / POOLS  (+ flash)
+     ====================================================================== */
+  function buildExacta(){
+    var lr=liveRunners().slice().sort(function(a,b){return a.ganyan-b.ganyan;}).slice(0,6);
+    scene.exacta=[];
+    for(var i=0;i<lr.length-1 && scene.exacta.length<LIST.exacta;i++){
+      var a=lr[i], b=lr[i+1];
+      scene.exacta.push({ label:a.no+"-"+b.no, value:tr(a.ganyan*b.ganyan*0.5,2), flash:0 });
+    }
+  }
+  function buildPools(){
+    scene.pools=[
+      {label:"İLK 2",value:tr(6+Math.random()*4,2),flash:0},
+      {label:"İLK 3",value:tr(10+Math.random()*8,2),flash:0},
+      {label:"ÇİFTE",value:tr(20+Math.random()*30,2),flash:0},
+      {label:"3'LÜ GANYAN",value:tr(40+Math.random()*60,2),flash:0},
+      {label:"ALTILI",value:tr(1000+Math.random()*4000,0),flash:0}
+    ];
+  }
+
+  // odds drift: a random walk pulled toward each horse's AGF; flash on change
+  var oddsTimer=null, oddsRunning=false;
+  function driftOnce(){
+    var changed={}, anyCard=false;
+    scene.runners.forEach(function(r){
+      if(r.scratched) return;
+      // AGF pull: higher AGF → shorter odds target
+      var target = Math.max(1.5, 30 - r.agf*0.9);
+      var step = (target - r.ganyan)*0.08 + (Math.random()-0.5)*1.2;
+      var prev=r.ganyan; r.ganyan = Math.max(1.3, Math.round((r.ganyan+step)*100)/100);
+      r.agf = Math.max(0.3, Math.round((r.agf + (Math.random()-0.45)*1.1)*10)/10);
+      r.flash = r.ganyan<prev ? 1 : (r.ganyan>prev ? 2 : 0);
+    });
+    // sidebar flags
+    scene.sideRunners.forEach(function(r){ if(!r.scratched){ var p=r.ganyan; r.ganyan=Math.max(1.3,Math.round((r.ganyan+(Math.random()-0.5)*1.5)*100)/100); r.flash=r.ganyan<p?1:(r.ganyan>p?2:0);} });
+    if(scene.exacta.length) buildExacta(), scene.exacta.forEach(function(c){ c.flash=Math.random()<0.4?(Math.random()<0.5?1:2):0; });
+    // reflect card A/B odds change
+    renderRunners();
+    commit();
+    // clear flashes ~0.8s later
+    setTimeout(function(){
+      scene.runners.forEach(function(r){ r.flash=0; });
+      scene.sideRunners.forEach(function(r){ r.flash=0; });
+      scene.exacta.forEach(function(c){ c.flash=0; });
+      commit();
+    }, 800);
+  }
+  function setOdds(run){
+    oddsRunning=run;
+    if(oddsTimer){ clearInterval(oddsTimer); oddsTimer=null; }
+    if(run){ var ms=parseInt($("simSpeed").value,10)*1000; oddsTimer=setInterval(driftOnce, ms); driftOnce(); }
+    $("simOdds").classList.toggle("on", run); $("simOdds").textContent=run?"Durdur":"Oynat";
+    $("simOddsSt").textContent=run?"çalışıyor":"durdu";
+  }
+
+  /* =========================================================================
+     8. PADDOCK AUTO-CYCLE
+     ====================================================================== */
+  var cycleTimer=null;
+  function setCycle(run){
+    if(cycleTimer){ clearInterval(cycleTimer); cycleTimer=null; }
+    if(run){ if(!scene.runnerA) prepCard(); cycleTimer=setInterval(cycleCard, 4000); if(layerState.kart!=="in"){ layerAction("kart","in"); } }
+    $("simCycle").classList.toggle("on", run); $("simCycle").textContent=run?"Durdur":"Başlat";
+    $("simCycleSt").textContent=run?"çalışıyor":"kapalı";
+  }
+
+  /* =========================================================================
+     9. THE RACE  (dial/progress + siralama overtakes + splits)
+     ====================================================================== */
+  var raceTimer=null, raceRunning=false, raceStart=0, raceDurMs=70000, finalOrder=null;
+  var POLES=["1200M","1000M","800M","600M","400M","200M","SON 100","FİNİŞ"];
+  function startRace(){
+    if(raceRunning) return;
+    scene.frame="race"; commit();
+    // seed a current order (by AGF) and a predetermined final order
+    var lr=liveRunners();
+    var seq=lr.slice().sort(function(a,b){return b.agf-a.agf;});
+    scene.order = scene.runners.slice(); // keep saddle order in the list
+    seq.forEach(function(r,i){ scene.siralama[r.no]=i+1; });
+    finalOrder = shuffleToward(seq);
+    scene.splits=[];
+    raceStart=Date.now(); raceRunning=true;
+    $("btnStart").classList.add("running"); $("btnStart").textContent="● YARIŞTA";
+    $("simMode").textContent="simülasyon";
+    log("🏁 BAŞLAT — yarış simülasyonu çalışıyor");
+    raceTimer=setInterval(raceTick, 320);  // ~3 updates/sec
+    commit();
+  }
+  function shuffleToward(seq){
+    var a=seq.slice();
+    for(var i=0;i<a.length;i++){ if(Math.random()<0.5 && i>0){ var t=a[i]; a[i]=a[i-1]; a[i-1]=t; } }
+    return a;
+  }
+  var lastPole=-1;
+  function raceTick(){
+    var frac=Math.min(1,(Date.now()-raceStart)/raceDurMs);
+    scene.dial.progress=Math.round(frac*1000)/10;
+    // progressively morph current order toward finalOrder
+    if(Math.random()<0.5){
+      var lr=liveRunners();
+      // pick two adjacent places and swap toward final
+      var byPlace=lr.slice().sort(function(a,b){return scene.siralama[a.no]-scene.siralama[b.no];});
+      var i=Math.floor(Math.random()*(byPlace.length-1));
+      var upNo=byPlace[i+1].no, downNo=byPlace[i].no;
+      var finPos=function(no){ return finalOrder.map(function(r){return r.no;}).indexOf(no); };
+      if(finPos(upNo)<finPos(downNo)){ var tmp=scene.siralama[upNo]; scene.siralama[upNo]=scene.siralama[downNo]; scene.siralama[downNo]=tmp; }
+    }
+    // add a split row as we pass poles
+    var poleIdx=Math.floor(frac*(POLES.length-1));
+    if(poleIdx>lastPole && poleIdx<POLES.length-1){
+      lastPole=poleIdx;
+      scene.splits.push({ marker:POLES[poleIdx], time:fmtClock(frac*raceDurMs/1000*1.8) });
+      if(scene.splits.length>LIST.splits) scene.splits.shift();
+    }
+    renderFoot();
+    commit();
+    if(frac>=1){ endRaceRun(); }
+  }
+  function endRaceRun(){
+    clearInterval(raceTimer); raceTimer=null; raceRunning=false; lastPole=-1;
+    // snap to final order
+    finalOrder.forEach(function(r,i){ scene.siralama[r.no]=i+1; });
+    $("btnStart").classList.remove("running"); $("btnStart").textContent="BAŞLAT ▶";
+    renderFoot(); commit();
+    log("🏆 Yarış bitti — BİTİR ile muhtemel neticeler");
+  }
+  function fmtClock(sec){ var m=Math.floor(sec/60), s=sec-m*60; return m+"'"+s.toFixed(2).replace(".","”").padStart(5,"0"); }
+
+  function finishResults(){
+    var lr=liveRunners().slice().sort(function(a,b){return (scene.siralama[a.no]||99)-(scene.siralama[b.no]||99);});
+    scene.results.order = lr.map(function(r){return r.no;}).join("  ");
+    scene.results.time = "2’16”"+String(Math.floor(Math.random()*90)).padStart(2,"0");
+    var margins=[]; for(var i=0;i<Math.min(4,lr.length-1);i++){ margins.push((Math.round(Math.random()*60)/10)+" BOY"); }
+    scene.results.margins = margins.join(" - ");
+    layerState.results = "prep";
+    commit();
+    layerAction("results","in");
+    log("BİTİR — MUHTEMEL NETİCELER: "+scene.results.order);
+  }
+
+  /* =========================================================================
+     10. RACE-DAY EVENTS
+     ====================================================================== */
+  function evJockey(){
+    var lr=liveRunners(); if(!lr.length) return;
+    var r=lr[Math.min(selRunnerIdx,lr.length-1)];
+    r.jockey=JOCKEYS[Math.floor(Math.random()*JOCKEYS.length)];
+    if(scene.runnerA && scene.runnerA.no===r.no){} // card reflects via commit
+    renderRunners(); commit();
+    log("👤 Jokey değişikliği: "+r.name+" → "+r.jockey,"w");
+    // brief flash on the card
+    r.flash=1; commit(); setTimeout(function(){ r.flash=0; commit(); },800);
+  }
+  function evScratch(){
+    var lr=liveRunners(); if(lr.length<2) return;
+    var r=lr[Math.min(selRunnerIdx,lr.length-1)];
+    r.scratched=true;
+    // reflow siralama 1..n with no gaps
+    var rest=liveRunners().slice().sort(function(a,b){return (scene.siralama[a.no]||99)-(scene.siralama[b.no]||99);});
+    rest.forEach(function(x,i){ scene.siralama[x.no]=i+1; });
+    if(scene.runnerA && scene.runnerA.no===r.no) scene.runnerA=rest[0]||null;
+    if(scene.runnerB && scene.runnerB.no===r.no) scene.runnerB=rest[0]||null;
+    renderRunners(); renderFoot(); commit();
+    log("🚫 Koşmaz: "+r.name+" — listeler kapandı","w");
+  }
+  function evPhoto(){
+    // photo finish: results held unofficial + protest badge, official later
+    if(layerState.results!=="in") finishResults();
+    setTimeout(function(){ fire("protestBadgeIn",{live:air==="canli"}); log("📸 Foto-finiş — sonuç MUHTEMEL tutuluyor, PROTESTO rozeti","w"); }, 600);
+  }
+  function protest(){
+    var on = layerState.protest!=="in";
+    if(on){ layerAction("protest","in"); } else { layerAction("protest","out"); }
+  }
+
+  /* =========================================================================
+     11. SENARYO  — ~2 min hands-free showcase
+     ====================================================================== */
+  var senaryoTimers=[];
+  function senaryo(){
+    stopSenaryo();
+    var seq=[
+      [0,    function(){ air="hazirla"; setAirUI(); scene.frame="lframe"; scene.side=0; commit(); fire("animateIn",{live:true}); onAir=true; setOnAir(true); say("L-frame yayında"); }],
+      [1500, function(){ setOdds(true); say("ganyan oynuyor"); }],
+      [3000, function(){ selRunnerIdx=0; prepCard(); commit(); fire("runnerIn",{live:true}); layerState.kart="in"; renderLayers(); say("at kartı"); }],
+      [5000, function(){ setCycle(true); say("otomatik tur"); }],
+      [13000,function(){ setCycle(false); buildExacta(); commit(); fire("exactaIn",{live:true}); layerState.exacta="in"; renderLayers(); say("Sıralı 2'li"); }],
+      [17000,function(){ fire("exactaOut",{live:true}); layerState.exacta="out"; buildPools(); commit(); fire("poolsIn",{live:true}); layerState.pools="in"; renderLayers(); say("havuzlar"); }],
+      [21000,function(){ fire("poolsOut",{live:true}); layerState.pools="out"; renderLayers(); say("yarışa hazırlık"); }],
+      [23000,function(){ air="canli"; setAirUI(); startRace(); say("yarış başladı"); }],
+      [23000+raceDurMs+1500, function(){ finishResults(); say("muhtemel neticeler"); }],
+      [23000+raceDurMs+6000, function(){ fire("protestBadgeIn",{live:true}); say("itiraz — protesto rozeti"); }],
+      [23000+raceDurMs+11000,function(){ fire("resultsOfficial",{live:true}); layerState.results="in"; renderLayers(); say("KESİN SONUÇ"); }],
+      [23000+raceDurMs+15000,function(){ setOdds(false); takeOutAll(); say("senaryo bitti"); stopSenaryo(); }]
+    ];
+    seq.forEach(function(s){ senaryoTimers.push(setTimeout(s[1], s[0])); });
+    $("btnSenaryo").classList.add("on");
+    function say(m){ $("senaryoSt").textContent=m; log("🎬 "+m); }
+  }
+  function stopSenaryo(){ senaryoTimers.forEach(clearTimeout); senaryoTimers=[]; $("btnSenaryo").classList.remove("on"); }
+
+  /* =========================================================================
+     12. RENDERING  (program rail, runner table, footer)
+     ====================================================================== */
+  var selRace=null;
+  function renderProgram(){
+    var P=Source.getProgram();
+    $("dayLbl").textContent=P.day;
+    var html="";
+    P.groups.forEach(function(g, gi){
+      html+='<div class="trackgrp"><div class="trackname">'+escapeHtml(g.track)+'</div>';
+      g.races.forEach(function(r, ri){
+        var sel = selRace && selRace.track===r.track && selRace.no===r.no;
+        var cls="race"+(r.state==="done"?" done":"")+(sel?" sel":"");
+        var state = r.state==="done" ? "bitti" : sel ? "hazır" : "bekliyor";
+        html+='<div class="'+cls+'" data-g="'+gi+'" data-r="'+ri+'">'+
+          '<span class="rno">'+r.no+'</span><span class="rtime">'+escapeHtml(r.time)+'</span>'+
+          '<span class="rstate">'+state+'</span></div>';
+      });
+      html+='<div style="font-size:10px;color:var(--faint);margin-top:4px">Yurt dışı ▸</div>';
+      html+='</div>';
+    });
+    $("program").innerHTML=html;
+  }
+  function renderRunners(){
+    if(!selRace) return;
+    var html="";
+    scene.runners.forEach(function(r, i){
+      var cc=clothOf(r.no);
+      var sel = i===selRunnerIdx;
+      html+='<tr class="'+(r.scratched?"scratched":"")+(sel?" sel":"")+'" data-i="'+i+'">'+
+        '<td><span class="cloth" style="background:'+cc[0]+';color:'+cc[1]+'">'+r.no+'</span></td>'+
+        '<td class="at"><span class="nm">'+escapeHtml(r.name)+'</span>'+(r.equip?'<span class="eq">'+escapeHtml(r.equip)+'</span>':'')+
+          (r.scratched?'<span class="kosmaz">Koşmaz</span>':'')+'</td>'+
+        '<td>'+escapeHtml(r.jockey)+'</td>'+
+        '<td class="num">'+r.weight+'</td>'+
+        '<td class="num">'+r.gate+'</td>'+
+        '<td class="num">'+(r.scratched?"–":"%"+tr(r.agf,1))+'</td>'+
+        '<td class="num">'+(r.scratched?"–":tr(r.ganyan,2))+'</td></tr>';
+    });
+    $("runnerBody").innerHTML=html;
+  }
+  function highlightRunner(){ renderRunners(); }
+  function renderFoot(){
+    if(!scene) return;
+    $("distLbl").textContent=scene.dial.leftLabel;
+    $("progFill").style.width=scene.dial.progress+"%";
+    var remain=Math.round((100-scene.dial.progress)/100*scene.dial.distance);
+    $("remLbl").textContent="kalan "+remain+"m";
+    // sıralama tokens in current order
+    var lr=liveRunners().slice().sort(function(a,b){return (scene.siralama[a.no]||99)-(scene.siralama[b.no]||99);});
+    $("srToks").innerHTML=lr.map(function(r){ var cc=clothOf(r.no); return '<span class="srtok" style="background:'+cc[0]+';color:'+cc[1]+'">'+r.no+'</span>'; }).join("");
+    $("splitRows").innerHTML=scene.splits.slice(-4).map(function(s){ return '<div class="srow"><span>'+escapeHtml(s.marker)+'</span><span class="mono">'+escapeHtml(s.time)+'</span></div>'; }).join("")||'<div class="srow" style="color:var(--faint)">—</div>';
+  }
+
+  function selectRaceByIdx(gi, ri){
+    var P=Source.getProgram(); var g=P.groups[gi]; if(!g) return; var r=g.races[ri]; if(!r) return;
+    selRace=r; selRunnerIdx=0;
+    // next race in the same group for the sidebar
+    var next=g.races[ri+1]||null;
+    scene=freshScene(r, next);
+    // sidebar runners get a trend flag for demo colour
+    scene.sideRunners=(next?next.runners:[]).slice(0,LIST.sideRunners).map(function(x){ var y=Object.assign({},x); y.trend=Math.floor(Math.random()*3); return y; });
+    lastSent={}; layerState={}; pendingTriggers=[];
+    $("rName").textContent="Koşu "+r.no+" · "+r.city.charAt(0)+r.city.slice(1).toLowerCase();
+    $("rTime").textContent=r.time;
+    $("rCond").textContent=r.conditions+" · "+r.distanceSurface;
+    $("setTrack").value = ["istanbul","ankara","izmir","adana","bursa"].indexOf(r.track)>=0 ? r.track : "bursa";
+    scene.track=$("setTrack").value;
+    renderProgram(); renderRunners(); renderLayers(); renderFoot();
+    $("readyPill").textContent="Hazır · "+scene.runners.filter(function(x){return !x.scratched;}).length+" at"; $("readyPill").className="pill ok";
+    log("Koşu "+r.no+" "+r.city+" seçildi — veriler hazırlanıyor (HAZIRLA)");
+    // pre-bind everything to the scene (staged)
+    commit();
+  }
+
+  /* =========================================================================
+     13. LOCAL RIVE PREVIEW  (offline / no controller — best effort)
+        The real preview is the Controller's /interactive iframe. Offline we
+        load the vendored tjk.riv and drive what the JS runtime can: triggers,
+        top-level enums/numbers, and nested scalar paths. Lists render fully
+        only through the Controller.
+     ====================================================================== */
+  var RIVE_CDN="https://cdn.jsdelivr.net/npm/@rive-app/canvas@2.40.1/rive.js";
+  var riveP=null, riveInst=null, riveVM=null;
+  function loadRive(){
+    if(window.rive) return Promise.resolve(window.rive);
+    if(!riveP) riveP=new Promise(function(res,rej){ var s=document.createElement("script"); s.src=RIVE_CDN; s.onload=function(){res(window.rive);}; s.onerror=function(){ riveP=null; rej(new Error("rive runtime yüklenemedi")); }; document.head.appendChild(s); });
+    return riveP;
+  }
+  function showPreview(mode){ // "iframe" | "local" | "none"
+    $("pvFrame").style.display = mode==="iframe"?"block":"none";
+    $("pvCanvas").style.display = mode==="local"?"block":"none";
+    $("pvNote").style.display = mode==="none"?"flex":"none";
+  }
+  function openIframePreview(){
+    if(!client || !rid || !iid){ showPreview("none"); return; }
+    stopLocalClock();                 // the Controller's playout clock drives it over there
+    var origin=baseOrigin();
+    $("pvFrame").src = origin+"/interactive/"+rid+"/"+iid;
+    showPreview("iframe");
+    log("Önizleme → "+origin+"/interactive/"+rid+"/"+iid);
+  }
+  async function initLocalRive(){
+    try{
+      var R=await loadRive();
+      stopLocalClock();
+      showPreview("local");
+      if(riveInst){ try{ riveInst.cleanup(); }catch(e){} riveInst=null; riveVM=null; }
+      riveInst=new R.Rive({ src:"tjk.riv", canvas:$("pvCanvas"), autoplay:true, autoBind:true,
+        onLoad:function(){ try{ riveInst.resizeDrawingSurfaceToCanvas(); }catch(e){}
+          var sms=riveInst.stateMachineNames||[]; try{ if(sms.length) riveInst.play(sms[0]); }catch(e){}
+          riveVM=riveInst.viewModelInstance||null;
+          log("Yerel tjk.riv önizlemesi yüklendi"+(sms.length?(" · "+sms[0]):""));
+          if(scene) feedLocalRive(flatten());
+          startLocalClock();          // see below — the file's clock.luau can't run in the web runtime
+        },
+        onLoadError:function(e){ log("Yerel rive hata: "+e,"e"); showPreview("none"); }
+      });
+    }catch(e){ log("Yerel rive: "+emsg(e),"e"); showPreview("none"); }
+  }
+
+  // The scene's clock is a Luau script (clock.luau) the Controller/editor run but
+  // the stock @rive-app/canvas web runtime does not — so in the LOCAL preview we
+  // take the scene's own switch: clockLive = 0 stops the (absent) script, and we
+  // write clockTime/clockDate/clockDateShort ourselves from the browser clock.
+  // On the Controller path clockLive stays 1 and the playout machine drives it.
+  // (The runtime may still log "ScriptAsset doesn't have a generator function
+  //  clock" once at import — cosmetic; see the README.)
+  var localClockTimer=null;
+  var TR_MONTHS=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  var TR_DAYS=["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+  var TR_DAYS_SHORT=["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"];
+  function pad2(n){ return (n<10?"0":"")+n; }
+  function writeLocalClock(){
+    if(!riveVM) return;
+    var d=new Date();
+    var time=pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds());
+    var date=d.getDate()+" "+TR_MONTHS[d.getMonth()]+", "+TR_DAYS[d.getDay()];
+    var dateShort=d.getDate()+" "+TR_MONTHS[d.getMonth()]+", "+TR_DAYS_SHORT[d.getDay()]+".";
+    var pt=vmProp("clockTime","string"); if(pt) pt.value=time;
+    var pd=vmProp("clockDate","string"); if(pd) pd.value=date;
+    var ps=vmProp("clockDateShort","string"); if(ps) ps.value=dateShort;
+  }
+  function startLocalClock(){
+    stopLocalClock();
+    if(!riveVM) return;
+    var cl=vmProp("clockLive","number"); if(cl) cl.value=0;   // local preview only
+    writeLocalClock();
+    localClockTimer=setInterval(writeLocalClock, 1000);
+  }
+  function stopLocalClock(){ if(localClockTimer){ clearInterval(localClockTimer); localClockTimer=null; } }
+  function vmProp(path, kind){
+    if(!riveVM) return null;
+    try{ return kind==="number"?riveVM.number(path):kind==="enum"?(riveVM.enum?riveVM.enum(path):null):kind==="color"?riveVM.color(path):riveVM.string(path); }catch(e){ return null; }
+  }
+  function feedLocalRive(obj){
+    if(!riveVM) return;
+    Object.keys(obj).forEach(function(key){
+      if(/\[\d+\]/.test(key)) return; // lists not driven locally
+      if(key==="clockLive") return;   // the local browser clock owns this (startLocalClock)
+      var v=obj[key], packed=v&&typeof v==="object"&&"value" in v, val=packed?v.value:v, type=packed?v.type:null;
+      try{
+        if(type==="number"){ var p=vmProp(key,"number"); if(p) p.value=Number(val)||0; }
+        else if(type==="color"){ var pc=vmProp(key,"color"); if(pc&&typeof pc.value!=="undefined"){} }
+        else if(key==="frame"||key==="track"){ var pe=vmProp(key,"enum"); if(pe) pe.value=String(val); }
+        else { var ps=vmProp(key,"string"); if(ps) ps.value=String(val); }
+      }catch(e){}
+    });
+  }
+  function fireLocalRive(name){
+    if(!riveVM) return;
+    try{ var t=riveVM.trigger(name); if(t) t.trigger(); }catch(e){}
+    // also try state-machine input
+    try{ var sms=riveInst.stateMachineNames||[]; if(sms.length){ var ins=riveInst.stateMachineInputs(sms[0])||[]; ins.forEach(function(i){ if(i.name===name && i.fire) i.fire(); }); } }catch(e){}
+  }
+
+  /* =========================================================================
+     14. CONNECTION
+     ====================================================================== */
+  function baseOrigin(){ return ($("baseUrl").value||"").trim().replace(/\/+$/,"").replace(/\/api\/v1$/,""); }
+  function setConn(txt,cls){ $("connText").textContent=txt; $("conn").className="pill"+(cls?(" "+cls):""); }
+  function setOnAir(on){ $("onairPill").textContent= on?"● YAYINDA":"● YAYIN DIŞI"; $("onairPill").className="air"+(on?" on":""); }
+  function setAirUI(){ document.querySelectorAll("#airSeg button").forEach(function(b){ b.classList.toggle("on", b.dataset.air===air); }); $("airSeg").querySelector(".seg"); document.querySelector("#airSeg").classList.toggle("live", air==="canli"); }
+
+  var templatesById=new Map();
+  async function connect(){
+    var baseUrl=($("baseUrl").value||"").trim(), u=($("username").value||"").trim(), p=$("password").value;
+    if(!baseUrl||!u){ setConn("URL + kullanıcı gerekli","err"); return; }
+    try{
+      client=Airz.createClient({ baseUrl:baseUrl });
+      var s=await client.auth.login(u,p);
+      setConn("bağlı · "+s.user.username,"ok");
+      log("Bağlandı: "+baseUrl+" ("+s.user.username+")");
+      try{ var tpls=await client.templates.list(); templatesById=new Map(tpls.map(function(t){return [t.id,t.name];})); }catch(e){ templatesById=new Map(); }
+      openStream();
+      await populateRundowns();
+      saveConn();
+    }catch(e){ client=null; setConn("bağlanamadı","err"); log("Bağlantı hatası: "+emsg(e)+" (parola / CORS :3467)","e"); }
+  }
+  function disconnect(){
+    closeStream(); client=null; rid=0; iid=0; templatesById=new Map();
+    $("rundownSel").innerHTML='<option value="">— önce bağlan —</option>'; $("itemSel").innerHTML='<option value="">—</option>';
+    setConn("bağlı değil"); $("itemPill").textContent="Öğe: —";
+    showPreview(scene?"none":"none"); if(scene) initLocalRive();
+    log("Bağlantı kesildi — kuru çalışma");
+  }
+  var savedSel={ rid:"", iid:"" };
+  async function populateRundowns(){
+    var list=await client.rundowns.list();
+    $("rundownSel").innerHTML='<option value="">— rundown seç —</option>'+list.map(function(r){ return '<option value="'+r.id+'">'+escapeHtml(r.name)+' ('+r.itemCount+')</option>'; }).join("");
+    if(savedSel.rid){ $("rundownSel").value=savedSel.rid; await populateItems(); }
+  }
+  function itemLabel(it){ var t=it.templateId?(templatesById.get(it.templateId)||("şablon "+it.templateId)):null; var title=(it.title||"").trim(); if(title) return title+(t?" · "+t:""); return t||((it.type||"öğe")+" #"+it.id); }
+  async function populateItems(){
+    var r=Number($("rundownSel").value); $("itemSel").innerHTML='<option value="">—</option>'; if(!client||!r) return;
+    var items=await client.items.list(r);
+    $("itemSel").innerHTML='<option value="">— öğe seç —</option>'+items.map(function(it){ return '<option value="'+it.id+'">'+escapeHtml(itemLabel(it))+'</option>'; }).join("");
+    if(savedSel.iid){ $("itemSel").value=savedSel.iid; onItemSelected(); }
+  }
+  function onItemSelected(){
+    rid=Number($("rundownSel").value); iid=Number($("itemSel").value);
+    var items=$("itemSel"); var label=items.options[items.selectedIndex]?items.options[items.selectedIndex].text:"—";
+    $("itemPill").textContent="Öğe: "+label;
+    if(rid&&iid){ lastSent={}; openIframePreview(); if(scene) commit(); log("Öğe seçildi — ilk önizleme için öğeyi en az bir kez alın (databinding'ler ilk çalıştırmada keşfedilir)","w"); }
+    saveConn();
+  }
+
+  /* ---- live stream (other desks / controller changes) ---- */
+  var stream=null, streamOffs=[];
+  function openStream(){ closeStream(); if(!client) return;
+    try{ stream=client.stream({ onState:function(st){ if(st==="open") log("Canlı akış bağlı — iki masa eşzamanlı"); } });
+      streamOffs.push(stream.on("item.updated", onRemoteUpdate));
+    }catch(e){ log("akış hatası: "+emsg(e),"e"); } }
+  function closeStream(){ streamOffs.forEach(function(o){ try{o();}catch(e){} }); streamOffs=[]; if(stream){ try{stream.close();}catch(e){} stream=null; } }
+  function onRemoteUpdate(e){ var d=e.data||{}; if(Number(d.itemId)!==iid) return; /* the iframe reflects it; nothing to mirror on the desk */ }
+
+  /* =========================================================================
+     15. PERSISTENCE + WIRING + BOOT
+     ====================================================================== */
+  var LS="airz.tjk.conn";
+  function saveConn(){ try{ localStorage.setItem(LS, JSON.stringify({ baseUrl:$("baseUrl").value, username:$("username").value, rid:$("rundownSel").value, iid:$("itemSel").value })); }catch(e){} }
+  function loadConn(){ try{ var c=JSON.parse(localStorage.getItem(LS)||"{}"); $("baseUrl").value=c.baseUrl||"http://localhost:3467"; $("username").value=c.username||"admin"; savedSel.rid=c.rid||""; savedSel.iid=c.iid||""; }catch(e){ $("baseUrl").value="http://localhost:3467"; $("username").value="admin"; } }
+
+  function log(msg, kind){ var l=$("log"); var d=document.createElement("div"); d.innerHTML='<span class="t">'+new Date().toLocaleTimeString()+'</span> '+(kind?'<span class="'+kind+'">'+msg+'</span>':msg); l.prepend(d); while(l.childNodes.length>120) l.removeChild(l.lastChild); }
+
+  function wire(){
+    $("btnSettings").addEventListener("click", function(){ $("drawer").classList.add("show"); });
+    $("btnClose").addEventListener("click", function(){ $("drawer").classList.remove("show"); });
+    $("drawer").addEventListener("click", function(e){ if(e.target===$("drawer")) $("drawer").classList.remove("show"); });
+    $("btnConnect").addEventListener("click", connect);
+    $("btnDisconnect").addEventListener("click", disconnect);
+    $("rundownSel").addEventListener("change", populateItems);
+    $("itemSel").addEventListener("change", onItemSelected);
+
+    document.querySelectorAll("#airSeg button").forEach(function(b){ b.addEventListener("click", function(){ air=b.dataset.air; setAirUI(); log("Mod → "+(air==="canli"?"CANLI (doğrudan yayın)":"HAZIRLA (TAKE ile yayın)")); }); });
+
+    $("program").addEventListener("click", function(e){ var row=e.target.closest(".race"); if(!row) return; selectRaceByIdx(Number(row.dataset.g), Number(row.dataset.r)); });
+    $("runnerBody").addEventListener("click", function(e){ var tr=e.target.closest("tr"); if(!tr) return; selRunnerIdx=Number(tr.dataset.i); highlightRunner(); });
+
+    $("layers").addEventListener("click", function(e){ var b=e.target.closest("button[data-layer]"); if(!b) return; layerAction(b.dataset.layer, b.dataset.act); });
+
+    $("simOdds").addEventListener("click", function(){ setOdds(!oddsRunning); });
+    $("simSpeed").addEventListener("change", function(){ if(oddsRunning) setOdds(true); });
+    $("simCycle").addEventListener("click", function(){ setCycle(!cycleTimer); });
+    $("evJockey").addEventListener("click", evJockey);
+    $("evScratch").addEventListener("click", evScratch);
+    $("evPhoto").addEventListener("click", evPhoto);
+    $("btnSenaryo").addEventListener("click", function(){ senaryoTimers.length?stopSenaryo():senaryo(); });
+
+    $("btnStart").addEventListener("click", startRace);
+    $("btnFinish").addEventListener("click", finishResults);
+    $("btnProtest").addEventListener("click", protest);
+    $("btnOfficial").addEventListener("click", function(){ fire("resultsOfficial",{live:air==="canli"}); layerState.results="in"; renderLayers(); log("KESİN SONUÇ"); });
+
+    // settings
+    $("setTrack").addEventListener("change", function(){ if(scene){ scene.track=$("setTrack").value; commit(); } });
+    $("setSide").addEventListener("change", function(){ if(scene){ scene.side=Number($("setSide").value); commit(); log("Yan panel → "+["Sabit","İlk 2/3/4","Kapalı"][scene.side]); } });
+    $("setClock").addEventListener("change", function(){ if(scene){ scene.clockLive=Number($("setClock").value); commit(); } });
+    $("setSponsor").addEventListener("input", function(){ if(scene){ scene.sponsor=$("setSponsor").value; commit(); } });
+    $("setVideo").addEventListener("change", function(){ if(scene){ scene.video=$("setVideo").value; commit(); log("Video kaynağı → "+scene.video); } });
+
+    ["baseUrl","username"].forEach(function(k){ $(k).addEventListener("input", saveConn); });
+
+    // keyboard
+    document.addEventListener("keydown", function(e){
+      if(/input|select|textarea/i.test((e.target.tagName||""))) return;
+      var lr=liveRunners();
+      switch(e.key){
+        case " ": e.preventDefault(); take(); break;
+        case "Escape": if(e.shiftKey) takeOutAll(); else { var inLayer=LAYERS.filter(function(L){return layerState[L.key]==="in";})[0]; if(inLayer) layerAction(inLayer.key,"out"); } break;
+        case "ArrowUp": e.preventDefault(); selRunnerIdx=Math.max(0,selRunnerIdx-1); highlightRunner(); break;
+        case "ArrowDown": e.preventDefault(); selRunnerIdx=Math.min(lr.length-1,selRunnerIdx+1); highlightRunner(); break;
+        case "Enter": layerAction("kart","in"); break;
+        case "b": case "B": startRace(); break;
+        case "n": case "N": finishResults(); break;
+        case "F1": e.preventDefault(); toggleFrame(); break;
+        case "F2": e.preventDefault(); layerAction("exacta","in"); break;
+        case "F3": e.preventDefault(); layerAction("pools","in"); break;
+        case "F4": e.preventDefault(); layerAction("results","in"); break;
+        case "F5": e.preventDefault(); protest(); break;
+      }
+    });
+  }
+
+  // ---- boot ----
+  if(typeof Airz==="undefined"){ setConn("SDK yüklenmedi","err"); }
+  loadConn(); setAirUI(); wire(); renderProgram();
+  selectRaceByIdx(0,0);        // Bursa race 1 preselected
+  initLocalRive();             // offline preview until a controller is connected
+  log("Hazır. Bir koşu seçin, HAZIRLA'da hazırlayın, TAKE (Space) ile yayına verin. Controller yoksa kuru çalışır.");
+})();
+</script>
+</body>
+</html>
