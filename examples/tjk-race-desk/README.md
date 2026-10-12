@@ -21,12 +21,22 @@ Or double-click **`run-tjk-desk.cmd`**.
   tjk.org screenshot; the rest are generated plausibly). Pick a race to pre-bind
   its whole scene (header, running order, odds, the sidebar's next race, abroad).
 - **Runner table** — saddle no (coloured cloth), horse, jockey, weight, gate, AGF,
-  ganyan. `↑ ↓` select, `Enter` takes the runner to the card.
+  ganyan. Each row has a **▶ take button** (the "Al" column) that puts that horse
+  straight on the card — the first one fires `runnerIn`, the next crawls the A/B
+  slot to it. The horse currently on the card is outlined and its button becomes an
+  **✕ take-out** that fires `runnerOut`. `↑ ↓` select, `Enter` takes the selected
+  runner.
 - **Layer controls** (right) — every scene trigger has a button:
   Ekran (`animateIn`/`animateOut`) · Çerçeve (`frame` L-frame ⇄ Yarış) ·
   At kartı (`runnerIn`/`runnerOut` with the A/B crawl via `runnerSlot`) ·
   Sıralı 2'li (`exacta*`) · Havuz (`pools*`) · Sonuç (`results*`,
   `resultsOfficial`) · Protesto (band + badge) · Yan panel (`side`).
+- **Smart conflicts** — the full runner card, Sıralı 2'li, Havuz and Sonuç all
+  occupy the same centre-stage region, so they are mutually exclusive: taking one
+  in automatically takes the previous one off first (its Out trigger fires), so
+  two centre animations never fight. The Protesto **band** is a frontmost overlay
+  and coexists (and the race frame drops it, as the scene does); the sidebar is
+  independent.
 - **Race strip** (bottom) — `BAŞLAT` sets `frame=race` and runs the simulator:
   `dial/progress` ~3×/s, overtakes change `siralama` on two rows, a split row is
   added at each pole. `BİTİR` builds `results` from the final order; `KESİNLEŞTİR`

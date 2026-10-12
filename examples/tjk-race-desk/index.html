@@ -113,6 +113,12 @@
     table.runners tr.scratched td { color:var(--faint); }
     table.runners tr.scratched .kosmaz { color:var(--danger); font-size:11px; margin-left:6px; }
     .cloth { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:5px; font-weight:800; font-size:12px; vertical-align:middle; }
+    button.rowtake { width:30px; padding:4px 0; border-radius:6px; border:1px solid var(--border2); background:var(--row); color:var(--accent); font-weight:800; font-size:12px; line-height:1; }
+    button.rowtake:hover { background:var(--accent); color:#06231a; border-color:transparent; }
+    button.rowtake:disabled { color:var(--faint); background:transparent; cursor:not-allowed; border-color:var(--border); }
+    button.rowtake.out { color:var(--danger); }
+    button.rowtake.out:hover { background:var(--danger); color:#fff; }
+    table.runners tr.carded .cloth { outline:2px solid var(--accent); outline-offset:1px; }
     td.at .nm { font-weight:600; }
     td.at .eq { color:var(--faint); font-size:10px; margin-left:6px; letter-spacing:.3px; }
     td.num { text-align:right; font-variant-numeric:tabular-nums; }
@@ -205,6 +211,7 @@
       <div id="rCond" class="rcond"></div>
       <table class="runners">
         <thead><tr>
+          <th style="width:42px">Al</th>
           <th style="width:30px">No</th><th>At</th><th style="width:110px">Jokey</th>
           <th style="width:44px">Kilo</th><th style="width:34px">St</th>
           <th style="width:54px">AGF</th><th style="width:60px">Ganyan</th>
@@ -574,6 +581,28 @@
   var layerState={};   // key → "out" | "prep" | "in"
   var pendingTriggers=[];  // triggers queued for TAKE in HAZIRLA
 
+  // Mutually exclusive on-air layers: the full runner card (runnerIn), the two
+  // short-card odds layers (exactaIn/poolsIn) and the end-of-race layer
+  // (resultsIn) all occupy the same centre-stage region (DATA.md), so only one
+  // may be up. Taking one in takes the others off first, so screen animations
+  // never fight. The protest BAND is frontmost overlay by design and the sidebar
+  // is independent — neither conflicts, so neither is listed here.
+  var STAGE_GROUP = ["kart","exacta","pools","results"];
+  function takeOutConflicts(key){
+    if(STAGE_GROUP.indexOf(key)<0) return;
+    STAGE_GROUP.forEach(function(ck){
+      if(ck===key) return;
+      if(layerState[ck]==="in" || layerState[ck]==="prep"){
+        var CL=LAYERS.filter(function(x){return x.key===ck;})[0]; if(!CL) return;
+        fire(CL.out, {live:air==="canli"});   // clear the conflicting layer first
+        layerState[ck]="out";
+        // drop any still-queued "in" for that layer so a later TAKE won't revive it
+        pendingTriggers=pendingTriggers.filter(function(t){ return t!==CL["in"]; });
+        log("↙ "+CL.lbl+" otomatik çıktı (çakışma)");
+      }
+    });
+  }
+
   function renderLayers(){
     var html="";
     LAYERS.forEach(function(L){
@@ -620,16 +649,18 @@
     }
   }
   function triggerLayer(L, name, newState){
+    if(newState==="in") takeOutConflicts(L.key);   // smart: clear conflicting on-air layers first
     if(air==="canli"){
       fire(name, {live:true}); layerState[L.key]=newState;
       log((newState==="in"?"▶ ":"◀ ")+L.lbl+" "+(newState==="in"?"YAYINDA":"ÇIKTI"));
     } else {
       fire(name, {}); // staged preview
       layerState[L.key]= newState==="out" ? "out" : "prep";
-      if(newState!=="out") pendingTriggers.push(name);
-      log("⏸ "+L.lbl+" hazırlandı — TAKE ile yayına");
+      if(newState==="out"){ log("◀ "+L.lbl+" önizlemeden çıktı"); }
+      else { pendingTriggers.push(name); log("⏸ "+L.lbl+" hazırlandı — TAKE ile yayına"); }
     }
     renderLayers();
+    renderRunners();   // the card's row ▶/✕ + outline track layerState.kart
   }
 
   async function take(){
@@ -654,9 +685,19 @@
 
   function toggleFrame(){
     scene.frame = scene.frame==="lframe" ? "race" : "lframe";
+    if(scene.frame==="race") syncRaceFrameLayers();   // the scene drops the protest band on race start
     commit();
     log("Çerçeve → "+(scene.frame==="race"?"YARIŞ":"L-FRAME"));
     renderLayers();
+  }
+  // Keep the desk's layer state in step with what the scene does on race start:
+  // "Starting the race frame takes [the protest band] off" (DATA.md).
+  function syncRaceFrameLayers(){
+    if(layerState.protest==="in" || layerState.protest==="prep"){
+      layerState.protest="out";
+      pendingTriggers=pendingTriggers.filter(function(t){ return t!=="protestIn"; });
+      log("↙ Protesto bandı otomatik çıktı (yarış çerçevesi)");
+    }
   }
 
   /* =========================================================================
@@ -757,7 +798,12 @@
   var POLES=["1200M","1000M","800M","600M","400M","200M","SON 100","FİNİŞ"];
   function startRace(){
     if(raceRunning) return;
-    scene.frame="race"; commit();
+    scene.frame="race"; syncRaceFrameLayers();
+    // The dial/track only shows once the graphic is on in the race frame, so
+    // bring it in if nothing is on air yet (otherwise frame=race plays the
+    // on-air race-start transition). This makes the track dot move on BAŞLAT.
+    if(layerState.ekran!=="in"){ commit(); fire("animateIn",{live:air==="canli"}); layerState.ekran="in"; onAir=true; setOnAir(true); renderLayers(); log("Ekran yarış çerçevesinde yayına alındı"); }
+    else commit();
     // seed a current order (by AGF) and a predetermined final order
     var lr=liveRunners();
     var seq=lr.slice().sort(function(a,b){return b.agf-a.agf;});
@@ -910,11 +956,20 @@
   }
   function renderRunners(){
     if(!selRace) return;
-    var html="";
+    var lr=liveRunners(), selR=lr[selRunnerIdx], html="";
+    var cardUp = layerState.kart==="in" || layerState.kart==="prep";
     scene.runners.forEach(function(r, i){
       var cc=clothOf(r.no);
-      var sel = i===selRunnerIdx;
-      html+='<tr class="'+(r.scratched?"scratched":"")+(sel?" sel":"")+'" data-i="'+i+'">'+
+      var sel = selR && selR.no===r.no;
+      var onCard = (scene.runnerA && scene.runnerA.no===r.no && scene.runnerSlot===0) ||
+                   (scene.runnerB && scene.runnerB.no===r.no && scene.runnerSlot===1);
+      var carded = cardUp && onCard;   // on the card AND the card layer is up
+      // the carded horse gets an ✕ (take the card out); everyone else a ▶ (take in)
+      var btn = carded
+        ? '<button class="rowtake out" data-takeout="1" title="Karttan çıkar">✕</button>'
+        : '<button class="rowtake" data-take="'+i+'"'+(r.scratched?" disabled":"")+' title="Karta al (önizlemeye/yayına)">▶</button>';
+      html+='<tr class="'+(r.scratched?"scratched":"")+(sel?" sel":"")+(carded?" carded":"")+'" data-i="'+i+'">'+
+        '<td>'+btn+'</td>'+
         '<td><span class="cloth" style="background:'+cc[0]+';color:'+cc[1]+'">'+r.no+'</span></td>'+
         '<td class="at"><span class="nm">'+escapeHtml(r.name)+'</span>'+(r.equip?'<span class="eq">'+escapeHtml(r.equip)+'</span>':'')+
           (r.scratched?'<span class="kosmaz">Koşmaz</span>':'')+'</td>'+
@@ -925,6 +980,23 @@
         '<td class="num">'+(r.scratched?"–":tr(r.ganyan,2))+'</td></tr>';
     });
     $("runnerBody").innerHTML=html;
+  }
+  // Take one runner straight to the card: select it, then bring the card in
+  // (first horse) or crawl the on-air card to it (A/B slot swap).
+  function cardTake(sceneIdx){
+    var r=scene.runners[sceneIdx]; if(!r||r.scratched) return;
+    var lr=liveRunners(), li=lr.indexOf(r); if(li<0) return;
+    selRunnerIdx=li; highlightRunner();
+    var L=LAYERS.filter(function(x){return x.key==="kart";})[0];
+    if(layerState.kart!=="in"){ prepCard(); commit(); triggerLayer(L, L["in"], "in"); log("▶ "+r.name+" karta alındı"); }
+    else { cardCrawlTo(r); log("⟳ kart → "+r.name); }
+    renderRunners();
+  }
+  // Take the runner card out from a row (the ✕ on the carded horse).
+  function cardTakeOut(){
+    var L=LAYERS.filter(function(x){return x.key==="kart";})[0];
+    triggerLayer(L, L.out, "out");     // fires runnerOut, respecting cue/live
+    renderRunners();
   }
   function highlightRunner(){ renderRunners(); }
   function renderFoot(){
@@ -1142,7 +1214,13 @@
     document.querySelectorAll("#airSeg button").forEach(function(b){ b.addEventListener("click", function(){ air=b.dataset.air; setAirUI(); log("Mod → "+(air==="canli"?"CANLI (doğrudan yayın)":"HAZIRLA (TAKE ile yayın)")); }); });
 
     $("program").addEventListener("click", function(e){ var row=e.target.closest(".race"); if(!row) return; selectRaceByIdx(Number(row.dataset.g), Number(row.dataset.r)); });
-    $("runnerBody").addEventListener("click", function(e){ var tr=e.target.closest("tr"); if(!tr) return; selRunnerIdx=Number(tr.dataset.i); highlightRunner(); });
+    $("runnerBody").addEventListener("click", function(e){
+      if(e.target.closest("button[data-takeout]")){ cardTakeOut(); return; }
+      var tb=e.target.closest("button[data-take]"); if(tb){ cardTake(Number(tb.dataset.take)); return; }
+      var tr=e.target.closest("tr"); if(!tr) return;
+      var r=scene.runners[Number(tr.dataset.i)]; if(!r) return;
+      var li=liveRunners().indexOf(r); if(li>=0){ selRunnerIdx=li; highlightRunner(); }
+    });
 
     $("layers").addEventListener("click", function(e){ var b=e.target.closest("button[data-layer]"); if(!b) return; layerAction(b.dataset.layer, b.dataset.act); });
 
@@ -1195,6 +1273,12 @@
   selectRaceByIdx(0,0);        // Bursa race 1 preselected
   initLocalRive();             // offline preview until a controller is connected
   log("Hazır. Bir koşu seçin, HAZIRLA'da hazırlayın, TAKE (Space) ile yayına verin. Controller yoksa kuru çalışır.");
+
+  // Dev handle — inspect the local preview VM from the console (e.g.
+  // __tjk.read("dial/progress"), __tjk.scene()). Harmless in production.
+  window.__tjk = { inst:function(){return riveInst;}, vm:function(){return riveVM;},
+    scene:function(){return scene;}, flatten:flatten,
+    read:function(p){ try{ var x=riveVM&&riveVM.number(p); return x?x.value:null; }catch(e){ return "ERR:"+e.message; } } };
 })();
 </script>
 </body>
