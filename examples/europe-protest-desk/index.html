@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>airZ · Avrupa Protesto Masası</title>
+
+  <!--
+    AVRUPA PROTESTO MASASI — a plain-HTML PRODUCER desk on the airZ Web SDK that
+    drives the Europe protest-map video wall (europe_protest_map.riv) in an airZ
+    Controller rundown item.
+
+    OPTION C: the whole SDK is one browser global (window.Airz). No bundler.
+        cd sdk && npm run build        regenerates dist/airz-sdk.global.min.js
+    Serve the repo root over HTTP:  npx serve .   →
+        http://localhost:3000/examples/europe-protest-desk/
+
+    THE CONTRACT (rive_cli/europe_protest_map/PLAN.md "Status" section) — all
+    FLAT values, the Controller writes them as ordinary data; no list rows:
+      • Story-wide: day, dayMax, title1, title2, subtitle, kicker, sampleTag,
+        compareA, compareB, idleReturn, introWave, introDraw, autoIntro.
+      • Per country (25 ISO A3): FRA_level 0–4, FRA_firstDay, FRA_cities,
+        FRA_peak, FRA_detained, FRA_source, FRA_daily ("3,6,8,…").
+      • Cities city1…city30: _name,_lat,_lon,_country,_firstDay,_weight,_count.
+      • Events ev1…ev8: _day,_places,_line.
+      • Photos photo1…photo12: _country,_city,_caption,_time,_credit (text only;
+        the images arrive through the Controller's image-folder ingest).
+      • command (number the scene resets to 0): 1 Avrupa · 2 Geri · 3 Zaman ·
+        4 Fotoğraflar · 5 Karşılaştır · 6 Oynat/Durdur · 9 Açılışı oynat ·
+        10 goCountry'e uç · 21/22 foto ‹/›.  goCountry = "FRA" then command 10.
+      • Published by the SCENE (read-only here): viewLevel (0 Avrupa,1 ülke,
+        2 zaman,3 foto,4 karşılaştır), viewCountry, day, playing, camX/Y/S.
+        The desk READS these to light the matching button, never writes them.
+  -->
+  <script src="../../sdk/dist/airz-sdk.global.min.js"></script>
+
+  <style>
+    :root {
+      --bg:#0b0c11; --panel:#14151c; --panel2:#101119; --rail:#0e0f15;
+      --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.14);
+      --text:#eef0f4; --muted:#8b92a0; --faint:#5b616d;
+      --ember:#ff7a3c; --ember2:#ffb020; --accent:#4aa8ff; --ok:#39d98a; --danger:#ff5d5d;
+      --l0:#2a2f3a; --l1:#5b3a2a; --l2:#8a4320; --l3:#c25316; --l4:#ff6a1f;
+    }
+    * { box-sizing:border-box; }
+    html,body { height:100%; }
+    body { margin:0; background:var(--bg); color:var(--text);
+      font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    button { font-family:inherit; cursor:pointer; }
+    .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
+
+    .topbar { display:flex; align-items:center; gap:10px; padding:8px 14px;
+      background:var(--panel); border-bottom:1px solid var(--border); flex:0 0 auto; }
+    .topbar h1 { font-size:14px; margin:0; letter-spacing:.3px; white-space:nowrap; }
+    .pill { font-size:11px; padding:4px 10px; border-radius:999px; border:1px solid var(--border2);
+      color:var(--muted); display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+    .pill .dot { width:8px; height:8px; border-radius:50%; background:var(--faint); }
+    .pill.ok .dot { background:var(--ok); } .pill.ok { color:var(--ok); border-color:rgba(57,217,138,.35); }
+    .pill.err .dot { background:var(--danger); } .pill.err { color:var(--danger); border-color:rgba(255,93,93,.35); }
+    .spacer { flex:1; }
+    .seg { display:inline-flex; border:1px solid var(--border2); border-radius:9px; overflow:hidden; }
+    .seg button { background:transparent; border:0; color:var(--muted); padding:6px 12px; font-size:12px; font-weight:700; letter-spacing:.3px; }
+    .seg button.on { background:var(--ember2); color:#241700; }
+    .seg.live button.on { background:var(--ok); color:#06231a; }
+    .iconbtn { background:var(--panel2); border:1px solid var(--border2); color:var(--text); border-radius:9px; padding:6px 10px; font-size:12px; }
+    .iconbtn:hover { border-color:var(--accent); }
+
+    .body { flex:1 1 auto; display:grid; grid-template-columns:300px 1fr 360px; min-height:0; }
+    .col { min-height:0; overflow:auto; }
+    .rail { background:var(--rail); border-right:1px solid var(--border); padding:12px; }
+    .center { padding:12px 14px; }
+    .right { background:var(--panel2); border-left:1px solid var(--border); padding:12px; }
+    .foot { flex:0 0 auto; display:grid; grid-template-columns:1fr 240px; gap:16px; align-items:center;
+      padding:10px 16px; background:var(--panel); border-top:1px solid var(--border); }
+    @media (max-width:1180px){ .body{ grid-template-columns:260px 1fr; } .right{ display:none; } }
+
+    h2.sec { font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--faint); margin:0 0 8px; font-weight:800; }
+    .field { margin:8px 0; } .field label { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:3px; }
+    .field input, .field textarea, .field select { width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--border2); background:#0e0f14; color:var(--text); font-size:12.5px; }
+    .field textarea { resize:vertical; min-height:40px; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+    /* country table */
+    table.ct { width:100%; border-collapse:collapse; font-size:12px; }
+    table.ct th { text-align:left; color:var(--faint); font-weight:700; font-size:9.5px; text-transform:uppercase; letter-spacing:.4px; padding:0 6px 6px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--panel2); }
+    table.ct td { padding:5px 6px; border-bottom:1px solid rgba(255,255,255,.04); }
+    table.ct tr.inplay { cursor:default; }
+    table.ct tr.dim td { color:var(--faint); }
+    table.ct tr.here { background:rgba(74,168,255,.14); outline:1px solid rgba(74,168,255,.35); }
+    .lvl { display:inline-block; width:20px; height:20px; border-radius:5px; text-align:center; line-height:20px; font-weight:800; font-size:11px; color:#0b0c11; }
+    .lvl.l0 { background:var(--l0); color:var(--muted); } .lvl.l1{background:var(--l1);color:#fff;} .lvl.l2{background:var(--l2);color:#fff;} .lvl.l3{background:var(--l3);color:#fff;} .lvl.l4{background:var(--l4);color:#0b0c11;}
+    .flytak { width:30px; padding:4px 0; border-radius:6px; border:1px solid var(--border2); background:#1a1c23; color:var(--accent); font-weight:800; font-size:12px; line-height:1; }
+    .flytak:hover { background:var(--accent); color:#04121f; border-color:transparent; }
+    .flytak.here { background:var(--accent); color:#04121f; border-color:transparent; }
+    .flytak:disabled { color:var(--faint); background:transparent; cursor:default; border-color:var(--border); }
+    td.n { text-align:right; font-variant-numeric:tabular-nums; }
+
+    /* producer rail */
+    .prow { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+    .pb { padding:9px 13px; border-radius:9px; border:1px solid var(--border2); background:#171922; color:var(--text); font-size:12.5px; font-weight:700; }
+    .pb:hover { border-color:var(--accent); }
+    .pb.on { background:var(--accent); color:#04121f; border-color:transparent; }
+    .pb.ember { color:var(--ember); border-color:rgba(255,122,60,.4); }
+    .pb.ember.on { background:var(--ember); color:#1a0a00; }
+    .pb.big { font-size:13px; padding:11px 16px; }
+    .pb.sm { padding:6px 10px; font-size:12px; }
+
+    .pvwrap { position:relative; width:100%; border-radius:10px; overflow:hidden; background:#07080b; border:1px solid var(--border); aspect-ratio:16/9; margin-bottom:8px; }
+    .pvwrap iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; }
+    .pvnote { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; color:var(--muted); font-size:12px; padding:16px; }
+
+    .wallrow { display:flex; align-items:center; gap:8px; margin:4px 0; font-size:12px; }
+    .wallrow .k { color:var(--faint); width:72px; } .wallrow .v { font-weight:700; }
+
+    .issues { margin-top:8px; }
+    .issue { display:flex; gap:7px; align-items:flex-start; font-size:11.5px; padding:5px 8px; border-radius:7px; margin-bottom:5px; background:rgba(255,93,93,.08); border:1px solid rgba(255,93,93,.2); color:#ffbcbc; }
+    .issue.warn { background:rgba(255,176,32,.08); border-color:rgba(255,176,32,.22); color:#ffd98a; }
+    .issue.ok { background:rgba(57,217,138,.08); border-color:rgba(57,217,138,.2); color:#aef0cf; }
+
+    .log { margin-top:10px; max-height:150px; overflow:auto; font:11px/1.5 ui-monospace,Menlo,Consolas,monospace; color:var(--muted); background:#0a0b0e; border:1px solid var(--border); border-radius:8px; padding:8px; }
+    .log .t { color:var(--accent); } .log .e { color:var(--danger); } .log .w { color:var(--ember2); } .log .g { color:var(--ok); }
+
+    /* day slider */
+    .daywrap { } .dayhead { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px; }
+    input[type=range] { width:100%; }
+    .kpis { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+    .kpis b { color:var(--text); font-size:15px; }
+
+    .drawer { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-start; justify-content:center; z-index:30; }
+    .drawer.show { display:flex; }
+    .sheet { margin-top:52px; width:min(560px,94vw); background:var(--panel); border:1px solid var(--border2); border-radius:14px; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.5); max-height:84vh; overflow:auto; }
+    .sheet h2 { margin:0 0 12px; font-size:15px; }
+    .drawrow { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+    .primary { background:var(--accent); color:#04121f; border:0; padding:9px 16px; border-radius:9px; font-weight:800; }
+    .ghost { background:transparent; border:1px solid var(--border2); color:var(--text); padding:9px 16px; border-radius:9px; font-weight:700; }
+    .hint { color:var(--faint); font-size:11.5px; margin-top:8px; line-height:1.5; }
+    .kbd { color:var(--faint); font-size:11px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>🗺️ Avrupa Protesto Masası</h1>
+    <span id="conn" class="pill"><span class="dot"></span><span id="connText">bağlı değil</span></span>
+    <span id="itemPill" class="pill">Öğe: —</span>
+    <div class="seg" id="tagSeg">
+      <button data-tag="1" class="on">ÖRNEK VERİ</button>
+      <button data-tag="0">YAYIN</button>
+    </div>
+    <span id="wallPill" class="pill">Duvar: —</span>
+    <span class="spacer"></span>
+    <span class="kbd">1 Avrupa · 2 Geri · 3 Zaman · 4 Foto · 5 Karşılaştır · Space Oynat · 9 Açılış</span>
+    <button class="iconbtn" id="btnSheet">⤵ Sayfa</button>
+    <button class="iconbtn" id="btnSettings">⚙ Bağlantı</button>
+  </div>
+
+  <div class="body">
+    <!-- LEFT: story-wide + sanity -->
+    <div class="col rail">
+      <h2 class="sec">Hikâye başlığı</h2>
+      <div class="field"><label>Üst başlık (kicker)</label><input id="f_kicker"></div>
+      <div class="grid2">
+        <div class="field"><label>Başlık 1</label><input id="f_title1"></div>
+        <div class="field"><label>Başlık 2</label><input id="f_title2"></div>
+      </div>
+      <div class="field"><label>Alt başlık</label><input id="f_subtitle"></div>
+      <div class="grid2">
+        <div class="field"><label>Gün (day)</label><input id="f_day" type="number"></div>
+        <div class="field"><label>Azami gün (dayMax)</label><input id="f_dayMax" type="number"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Karşılaştır A</label><input id="f_compareA"></div>
+        <div class="field"><label>Karşılaştır B</label><input id="f_compareB"></div>
+      </div>
+
+      <h2 class="sec" style="margin-top:14px">Yayın öncesi denetim</h2>
+      <div id="issues" class="issues"></div>
+    </div>
+
+    <!-- CENTER: country sheet + producer rail -->
+    <div class="col center">
+      <h2 class="sec">Ülkeler · sahadaki ülkeye uç (▶)</h2>
+      <table class="ct">
+        <thead><tr>
+          <th style="width:36px">Uç</th><th style="width:34px">Kod</th><th>Ülke</th>
+          <th style="width:40px">Sev.</th><th style="width:40px">1.gün</th>
+          <th style="width:46px" class="n">Şehir</th><th style="width:60px" class="n">Zirve</th>
+          <th style="width:56px" class="n">Göz.</th><th>Kaynak</th>
+        </tr></thead>
+        <tbody id="ctBody"></tbody>
+      </table>
+
+      <h2 class="sec" style="margin-top:14px">Yapımcı kontrolleri</h2>
+      <div class="prow">
+        <button class="pb ember big" data-cmd="9">▶ Açılışı oynat</button>
+        <button class="pb big" data-cmd="1">Avrupa</button>
+        <button class="pb" data-cmd="2">‹ Geri</button>
+        <button class="pb" data-cmd="3">Zaman</button>
+        <button class="pb" data-cmd="4">Fotoğraflar</button>
+        <button class="pb" data-cmd="5">Karşılaştır</button>
+        <button class="pb" data-cmd="6" id="pbPlay">Oynat / Durdur</button>
+        <button class="pb sm" id="pbAutoIntro" title="Açık: her programa alışta açılış kendiliğinden oynar. Kapalı: açılış yalnızca 'Açılışı oynat' ile (cue).">Oto-açılış: açık</button>
+        <button class="pb sm" id="pbTextBoost" title="1920×1080 kanala çıkarken aç: küçük arayüz yazıları ve harita etiketleri büyür (textBoost 1 ↔ 1.4).">1080 çıkış: kapalı</button>
+      </div>
+      <div class="prow">
+        <span class="kbd" style="align-self:center">Fotoğraf:</span>
+        <button class="pb sm" data-cmd="21">‹ Önceki</button>
+        <button class="pb sm" data-cmd="22">Sonraki ›</button>
+        <span class="spacer"></span>
+        <button class="pb sm" id="btnSenaryo">🎬 Prova senaryosu</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- RIGHT: preview + wall mirror -->
+    <div class="col right">
+      <h2 class="sec">Önizleme · gerçek duvar</h2>
+      <div class="pvwrap">
+        <iframe id="pvFrame" title="interactive preview" style="display:none"></iframe>
+        <div id="pvNote" class="pvnote">Bağlanınca Controller'ın <b>/interactive</b> duvar sayfası burada görünür.</div>
+      </div>
+      <h2 class="sec" style="margin-top:12px">Duvar durumu (sahne yayınlar)</h2>
+      <div class="wallrow"><span class="k">Görünüm</span><span class="v" id="w_level">—</span></div>
+      <div class="wallrow"><span class="k">Ülke</span><span class="v" id="w_country">—</span></div>
+      <div class="wallrow"><span class="k">Gün</span><span class="v" id="w_day">—</span></div>
+      <div class="wallrow"><span class="k">Oynatma</span><span class="v" id="w_playing">—</span></div>
+      <p class="hint">Sunucu dokunmatikle gezinse bile masa bu değerlerden ilgili düğmeyi yakar — kim en son dokunduysa o kazanır.</p>
+    </div>
+  </div>
+
+  <!-- FOOTER: day slider -->
+  <div class="foot">
+    <div class="daywrap">
+      <div class="dayhead"><span>Zaman tüneli · gün <span id="dayVal">—</span> / <span id="dayMaxVal">—</span></span>
+        <span id="playState" class="kbd"></span></div>
+      <input type="range" id="daySlider" min="1" max="14" value="9">
+    </div>
+    <div class="kpis">
+      <div><b id="kpiC">—</b><br>ülke sahada</div>
+      <div><b id="kpiCity">—</b><br>şehir</div>
+    </div>
+  </div>
+
+  <!-- SHEET DRAWER (CSV/JSON load) -->
+  <div class="drawer" id="sheetDrawer">
+    <div class="sheet">
+      <h2>Hikâye sayfası · yükle / dışa aktar</h2>
+      <p class="hint">Dahili örnek, sahnenin varsayılan hikâyesiyle aynıdır (Paris → Avrupa, 15 ülke, 30 şehir). Kendi sayfanızı <b>JSON</b> veya ülke <b>CSV</b>'si olarak yükleyin.</p>
+      <div class="field"><label>Dosya (.json veya .csv)</label><input id="fileInput" type="file" accept=".json,.csv"></div>
+      <div class="field"><label>CSV biçimi (ülke satırları)</label>
+        <textarea id="csvHint" readonly>code,level,firstDay,cities,peak,detained,source,daily
+FRA,4,1,18,410000,1240,İçişleri · sendikalar,"3,6,8,9,7,10,12,9,11"</textarea></div>
+      <div class="drawrow">
+        <button class="ghost" id="btnLoadSample">Örneği geri yükle</button>
+        <button class="ghost" id="btnExport">JSON dışa aktar</button>
+        <button class="ghost" id="btnCloseSheet">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONNECTION DRAWER -->
+  <div class="drawer" id="connDrawer">
+    <div class="sheet">
+      <h2>Bağlantı</h2>
+      <div class="field"><label>Controller URL</label><input id="baseUrl" placeholder="http://localhost:3467"></div>
+      <div class="grid2">
+        <div class="field"><label>Kullanıcı</label><input id="username" placeholder="admin"></div>
+        <div class="field"><label>Parola</label><input id="password" type="password"></div>
+      </div>
+      <div class="drawrow"><button class="primary" id="btnConnect">Bağlan</button><button class="ghost" id="btnDisconnect">Kes</button></div>
+      <div class="field"><label>Rundown</label><select id="rundownSel"><option value="">— önce bağlan —</option></select></div>
+      <div class="field"><label>Öğe (Avrupa duvarı)</label><select id="itemSel"><option value="">—</option></select></div>
+      <div class="hint">Bağlantı yoksa masa <b>kuru çalışır</b>: gönderilecek değerler kayıt panosuna yazılır. Komutlar <code>command</code> sayısıyla, veriler düz anahtarlarla gider (liste yok).</div>
+      <div class="drawrow"><button class="ghost" id="btnCloseConn">Kapat</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id);};
+  var esc=function(s){return String(s==null?"":s).replace(/[<>&]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c];});};
+
+  /* =========================================================================
+     1. SCENE DEFAULTS  (mirror of rive_cli/europe_protest_map/tools gen.py+geo.py)
+        The built-in sample is the SAME story as the scene's own defaults.
+     ====================================================================== */
+  var SCOPE = ["FRA","BEL","NLD","LUX","DEU","ITA","ESP","PRT","GBR","IRL","CHE","AUT","DNK",
+               "SWE","NOR","FIN","POL","CZE","SVK","HUN","SVN","HRV","GRC","ROU","BGR"];
+  var NAMES = {FRA:"Fransa",BEL:"Belçika",NLD:"Hollanda",LUX:"Lüksemburg",DEU:"Almanya",ITA:"İtalya",
+    ESP:"İspanya",PRT:"Portekiz",GBR:"Birleşik Krallık",IRL:"İrlanda",CHE:"İsviçre",AUT:"Avusturya",
+    DNK:"Danimarka",SWE:"İsveç",NOR:"Norveç",FIN:"Finlandiya",POL:"Polonya",CZE:"Çekya",SVK:"Slovakya",
+    HUN:"Macaristan",SVN:"Slovenya",HRV:"Hırvatistan",GRC:"Yunanistan",ROU:"Romanya",BGR:"Bulgaristan"};
+  var LEVEL = {FRA:4,BEL:3,DEU:3,ITA:3,ESP:3,GBR:2,NLD:2,PRT:2,GRC:2,AUT:1,CHE:1,IRL:1,DNK:1,SWE:1,POL:1};
+  var FIRST_DAY = {FRA:1,BEL:3,NLD:4,DEU:4,ITA:4,ESP:4,GBR:5,CHE:5,PRT:6,GRC:6,AUT:6,IRL:7,POL:7,DNK:7,SWE:8};
+  // cities, peak, detained, source, daily
+  var FACTS = {
+    FRA:[18,410000,1240,"İçişleri · sendikalar","3,6,8,9,7,10,12,9,11"],
+    BEL:[6,64000,210,"Federal polis","0,0,2,4,5,4,6,5,7"],
+    DEU:[11,160000,380,"Eyalet polisleri","0,0,0,3,5,6,8,7,9"],
+    ITA:[9,140000,150,"Questura · CGIL","0,0,0,4,6,5,7,8,8"],
+    ESP:[8,120000,95,"Hükümet temsilciliği","0,0,0,2,5,6,6,7,8"],
+    GBR:[5,48000,60,"Metropolitan Police","0,0,0,0,3,4,4,5,5"],
+    NLD:[4,21000,35,"Politie","0,0,0,2,3,3,4,3,4"],
+    PRT:[3,15000,8,"PSP","0,0,0,0,0,2,3,3,4"],
+    GRC:[4,26000,40,"ELAS","0,0,0,0,0,3,4,5,5"],
+    AUT:[3,12000,12,"LPD Wien","0,0,0,0,0,2,2,3,3"],
+    CHE:[3,9000,6,"Kanton polisleri","0,0,0,0,2,2,2,3,2"],
+    IRL:[2,5000,2,"Garda","0,0,0,0,0,0,1,2,2"],
+    DNK:[2,4000,3,"Rigspolitiet","0,0,0,0,0,0,1,2,2"],
+    SWE:[2,4000,1,"Polisen","0,0,0,0,0,0,0,1,2"],
+    POL:[3,10000,14,"Komenda Policji","0,0,0,0,0,0,2,3,3"]
+  };
+  var CITIES = [
+    ["Paris",48.857,2.352,"FRA",1,10,"≈ 180 bin"],["Lyon",45.764,4.836,"FRA",2,6,"≈ 42 bin"],
+    ["Marsilya",43.296,5.370,"FRA",2,6,"≈ 38 bin"],["Lille",50.629,3.057,"FRA",2,4,"≈ 21 bin"],
+    ["Bordeaux",44.838,-0.579,"FRA",3,4,"≈ 19 bin"],["Toulouse",43.605,1.444,"FRA",3,4,"≈ 24 bin"],
+    ["Nantes",47.218,-1.554,"FRA",3,3,"≈ 15 bin"],["Strazburg",48.573,7.752,"FRA",3,3,"≈ 11 bin"],
+    ["Rennes",48.117,-1.678,"FRA",4,3,"≈ 12 bin"],["Nice",43.710,7.262,"FRA",4,2,"≈ 6 bin"],
+    ["Limoges",45.834,1.261,"FRA",4,3,"≈ 13 bin"],   // was Montpellier (label collided with Marsilya when zoomed)
+    ["Brüksel",50.850,4.352,"BEL",3,6,"≈ 30 bin"],["Amsterdam",52.370,4.895,"NLD",4,4,"≈ 12 bin"],
+    ["Berlin",52.520,13.405,"DEU",4,6,"≈ 60 bin"],["Hamburg",53.551,9.993,"DEU",5,3,"≈ 14 bin"],
+    ["Münih",48.137,11.575,"DEU",5,3,"≈ 16 bin"],["Roma",41.903,12.496,"ITA",4,5,"≈ 45 bin"],
+    ["Milano",45.464,9.190,"ITA",4,5,"≈ 33 bin"],["Madrid",40.417,-3.704,"ESP",5,5,"≈ 40 bin"],
+    ["Barselona",41.385,2.173,"ESP",4,5,"≈ 52 bin"],["Lizbon",38.722,-9.139,"PRT",6,3,"≈ 9 bin"],
+    ["Atina",37.984,23.728,"GRC",6,4,"≈ 20 bin"],["Londra",51.507,-0.128,"GBR",5,4,"≈ 25 bin"],
+    ["Dublin",53.350,-6.260,"IRL",7,2,"≈ 5 bin"],["Viyana",48.208,16.373,"AUT",6,3,"≈ 8 bin"],
+    ["Zürih",47.377,8.540,"CHE",5,2,"≈ 6 bin"],["Varşova",52.230,21.012,"POL",7,3,"≈ 10 bin"],
+    ["Kopenhag",55.676,12.568,"DNK",7,2,"≈ 4 bin"],["Stokholm",59.329,18.069,"SWE",8,2,"≈ 4 bin"],
+    ["Cenevre",46.204,6.143,"CHE",5,2,"≈ 3 bin"]
+  ];
+  var EVENTS = [[1,"Paris","İlk büyük yürüyüş"],[2,"Lyon · Marsilya · Lille","Fransa geneline yayılma"],
+    [3,"Brüksel","İlk sınır ötesi eylem"],[4,"Berlin · Roma · Barselona","Başkentlerde eş zamanlı"],
+    [5,"Londra · Madrid · Zürih","Hafta sonu dalgası"],[6,"Lizbon · Atina · Viyana","Güney ve doğu"],
+    [7,"Dublin · Varşova · Kopenhag","Kuzeye ve doğuya"],[8,"Stokholm","İskandinavya"]];
+  var PHOTOS = [
+    ["FRA","Paris · Place de la République","Akşam yürüyüşü meydanı doldurdu","9. gün · 18:40","Fotoğraf: muhabir / ajans"],
+    ["FRA","Paris · Bastille","Sendikalar ortak kortej kurdu","8. gün · 15:10","Fotoğraf: muhabir / ajans"],
+    ["FRA","Lyon · Bellecour","Öğrenciler meydanda","6. gün · 13:25","Fotoğraf: muhabir / ajans"],
+    ["FRA","Marsilya · Vieux-Port","Liman çevresinde yürüyüş","5. gün · 17:05","Fotoğraf: muhabir / ajans"],
+    ["FRA","Lille · Grand Place","Gece boyu oturma eylemi","4. gün · 22:40","Fotoğraf: muhabir / ajans"],
+    ["FRA","Paris · Nation","İkinci haftanın ilk günü","9. gün · 11:30","Fotoğraf: muhabir / ajans"],
+    ["DEU","Berlin · Brandenburg Kapısı","Başkentte en kalabalık gün","7. gün · 16:00","Fotoğraf: muhabir / ajans"],
+    ["BEL","Brüksel · Schuman","AB binalarının önünde","4. gün · 12:15","Fotoğraf: muhabir / ajans"],
+    ["ITA","Roma · Piazza del Popolo","Sendika çağrısıyla toplanma","6. gün · 15:45","Fotoğraf: muhabir / ajans"]
+  ];
+  var CMD_LABEL = {1:"Avrupa",2:"Geri",3:"Zaman",4:"Fotoğraflar",5:"Karşılaştır",6:"Oynat/Durdur",9:"Açılışı oynat",10:"Ülkeye uç",21:"Önceki foto",22:"Sonraki foto"};
+  var VIEW_LABEL = ["Avrupa","Ülke","Zaman","Fotoğraflar","Karşılaştır"];
+
+  /* =========================================================================
+     2. STORY MODEL  +  the sample (scene defaults)
+     ====================================================================== */
+  var story=null;
+  function buildSample(){
+    var countries={};
+    SCOPE.forEach(function(c){
+      var f=FACTS[c]||[0,0,0,"",""];
+      countries[c]={ level:LEVEL[c]||0, firstDay:FIRST_DAY[c]||0, cities:f[0], peak:f[1], detained:f[2], source:f[3], daily:f[4] };
+    });
+    var cities=CITIES.map(function(a){ return {name:a[0],lat:a[1],lon:a[2],country:a[3],firstDay:a[4],weight:a[5],count:a[6]}; });
+    var events=EVENTS.map(function(a){ return {day:a[0],places:a[1],line:a[2]}; });
+    var photos=PHOTOS.map(function(a){ return {country:a[0],city:a[1],caption:a[2],time:a[3],credit:a[4]}; });
+    return {
+      wide:{ day:9, dayMax:14, sampleTag:1, idleReturn:240, introWave:0.6, introDraw:1.0, autoIntro:1, textBoost:1,
+        kicker:"EDİTORYAL ANALİZ · AVRUPA", title1:"Paris'ten Avrupa'ya", title2:"protesto dalgası",
+        subtitle:"Bir ülkeye dokunun: şehirler, rakamlar ve sahadan fotoğraflar", compareA:"FRA", compareB:"DEU" },
+      countries:countries, cities:cities, events:events, photos:photos
+    };
+  }
+  function inPlay(code){ var o=story.countries[code]; return o && (o.level||0)>0; }
+
+  /* =========================================================================
+     3. FLATTEN  →  the wire map (flat keys; numbers wrapped)
+     ====================================================================== */
+  function N(v){ return {type:"number", value:Number(v)||0}; }
+  function flatten(){
+    var d={}, s=story.wide, i, n;
+    d.day=N(s.day); d.dayMax=N(s.dayMax); d.sampleTag=N(s.sampleTag);
+    d.idleReturn=N(s.idleReturn); d.introWave=N(s.introWave); d.introDraw=N(s.introDraw); d.autoIntro=N(s.autoIntro);
+    d.textBoost=N(s.textBoost!=null?s.textBoost:1);
+    d.title1=s.title1; d.title2=s.title2; d.subtitle=s.subtitle; d.kicker=s.kicker;
+    d.compareA=s.compareA; d.compareB=s.compareB;
+    SCOPE.forEach(function(c){ var o=story.countries[c]||{};
+      d[c+"_level"]=N(o.level); d[c+"_firstDay"]=N(o.firstDay); d[c+"_cities"]=N(o.cities);
+      d[c+"_peak"]=N(o.peak); d[c+"_detained"]=N(o.detained); d[c+"_source"]=o.source||""; d[c+"_daily"]=o.daily||"";
+    });
+    for(i=0;i<30;i++){ n=i+1; var ct=story.cities[i]||{};
+      d["city"+n+"_name"]=ct.name||""; d["city"+n+"_lat"]=N(ct.lat); d["city"+n+"_lon"]=N(ct.lon);
+      d["city"+n+"_country"]=ct.country||""; d["city"+n+"_firstDay"]=N(ct.firstDay);
+      d["city"+n+"_weight"]=N(ct.weight); d["city"+n+"_count"]=ct.count||"";
+    }
+    for(i=0;i<8;i++){ n=i+1; var e=story.events[i]||{}; d["ev"+n+"_day"]=N(e.day); d["ev"+n+"_places"]=e.places||""; d["ev"+n+"_line"]=e.line||""; }
+    for(i=0;i<12;i++){ n=i+1; var p=story.photos[i]||{}; d["photo"+n+"_country"]=p.country||""; d["photo"+n+"_city"]=p.city||""; d["photo"+n+"_caption"]=p.caption||""; d["photo"+n+"_time"]=p.time||""; d["photo"+n+"_credit"]=p.credit||""; }
+    return d;
+  }
+
+  /* =========================================================================
+     4. SENDING  (sheet = diff; command = always, with the 0-reset)
+     ====================================================================== */
+  var client=null, rid=0, iid=0, lastSent={};
+  function packedEq(a,b){ return JSON.stringify(a)===JSON.stringify(b); }
+  function commitSheet(){
+    sanity();   // a data change always re-runs the pre-air check (not wall-state ticks)
+    var full=flatten(), diff={}, k, n=0;
+    for(k in full){ if(!packedEq(lastSent[k], full[k])){ diff[k]=full[k]; n++; } }
+    lastSent=full;
+    if(!n) return;
+    sendRaw(diff, n+" alan");
+  }
+  function sendRaw(obj, label){
+    if(!client||!rid||!iid){ dryLog(obj,label); return; }
+    client.items.setData(rid, iid, obj, {mode:"live"}).catch(function(e){ log("setData hata: "+emsg(e),"e"); });
+  }
+  // command is edge-triggered and /data MERGES, so to re-fire the same number we
+  // write it then reset to 0 (the scene resets to 0 itself — the 0 is a no-op there).
+  // The scene reads command once per frame, so two DIFFERENT commands must not land
+  // in the same frame: we space successive commands by at least 60 ms.
+  var cmdLastAt=0;
+  function sendCommand(n){
+    var now=Date.now(), gap=now-cmdLastAt, delay=gap<60?(60-gap):0;
+    cmdLastAt=now+delay;
+    setTimeout(function(){
+      sendRaw({command:N(n)}, null);
+      setTimeout(function(){ sendRaw({command:N(0)}, null); }, 220);
+    }, delay);
+    log("» komut "+n+" · "+(CMD_LABEL[n]||""), "g");
+  }
+  function flyTo(code){
+    if(!inPlay(code)) return;
+    sendRaw({goCountry:code}, null);
+    sendCommand(10);
+    expectCountry=code;           // optimistic until the wall publishes viewCountry
+    log("» "+NAMES[code]+"'ye uç (goCountry="+code+", komut 10)","g");
+    renderCountries();
+  }
+  function emsg(e){ return e&&e.message?e.message:String(e); }
+  function dryLog(obj,label){ var keys=Object.keys(obj); log("kuru ⇢ "+(label||keys.join(", "))+(label?(" ["+keys.slice(0,3).join(", ")+(keys.length>3?"…":"")+"]"):"")); }
+
+  /* =========================================================================
+     5. WALL STATE MIRROR  (read the scene-published view values; never write)
+     ====================================================================== */
+  var viewLevel=0, expectCountry="", playing=0, dayDragging=false;
+  function unwrap(v){ return (v&&typeof v==="object"&&"value" in v)?v.value:v; }
+  function applyWallState(data){
+    if(!data||typeof data!=="object") return;
+    var vl=unwrap(data.viewLevel), vc=unwrap(data.viewCountry), pl=unwrap(data.playing), dy=unwrap(data.day);
+    if(vl!=null && vl!=="") { viewLevel=Number(vl)||0; }
+    if(vc!=null) { expectCountry=String(vc||""); }
+    if(pl!=null && pl!=="") { playing=Number(pl)||0; }
+    if(dy!=null && dy!=="" && !dayDragging){ var d=Math.round(Number(dy)); if(isFinite(d)){ story.wide.day=d; $("daySlider").value=d; $("f_day").value=d; } }
+    renderWall();
+  }
+  function renderWall(){
+    $("w_level").textContent = VIEW_LABEL[viewLevel]!=null ? (viewLevel+" · "+VIEW_LABEL[viewLevel]) : String(viewLevel);
+    $("w_country").textContent = expectCountry ? (NAMES[expectCountry]||expectCountry) : "—";
+    $("w_day").textContent = story.wide.day;
+    $("w_playing").textContent = playing ? "oynatılıyor ▶" : "duruyor ⏸";
+    $("wallPill").textContent = "Duvar: "+(VIEW_LABEL[viewLevel]||viewLevel)+(expectCountry?(" · "+(NAMES[expectCountry]||expectCountry)):"");
+    $("dayVal").textContent = story.wide.day; $("dayMaxVal").textContent = story.wide.dayMax;
+    $("playState").textContent = playing ? "▶ oynatılıyor" : "";
+    $("pbPlay").classList.toggle("on", !!playing);
+    // light the rail button that matches the wall view
+    document.querySelectorAll('.prow .pb[data-cmd]').forEach(function(b){
+      var c=Number(b.dataset.cmd), on=false;
+      if(c===1) on=viewLevel===0; else if(c===3) on=viewLevel===2; else if(c===4) on=viewLevel===3; else if(c===5) on=viewLevel===4;
+      if([1,3,4,5].indexOf(c)>=0) b.classList.toggle("on", on);
+    });
+    renderCountries();
+  }
+
+  /* =========================================================================
+     6. RENDER  (country sheet + story-wide fields + KPIs)
+     ====================================================================== */
+  function renderCountries(){
+    var rows=SCOPE.slice().sort(function(a,b){ var la=story.countries[a].level||0, lb=story.countries[b].level||0; if(lb!==la) return lb-la; return (story.countries[a].firstDay||99)-(story.countries[b].firstDay||99); });
+    var html="";
+    rows.forEach(function(c){
+      var o=story.countries[c], lvl=o.level||0, play=lvl>0, here=play && expectCountry===c;
+      html+='<tr class="'+(play?"inplay":"dim")+(here?" here":"")+'">'+
+        '<td><button class="flytak'+(here?" here":"")+'" data-fly="'+c+'"'+(play?"":" disabled")+' title="Bu ülkeye uç">▶</button></td>'+
+        '<td class="mono">'+c+'</td><td>'+esc(NAMES[c]||c)+'</td>'+
+        '<td><span class="lvl l'+lvl+'">'+lvl+'</span></td>'+
+        '<td class="n">'+(o.firstDay||"–")+'</td>'+
+        '<td class="n">'+(lvl>0?o.cities:"–")+'</td>'+
+        '<td class="n">'+(lvl>0?fmtTr(o.peak):"–")+'</td>'+
+        '<td class="n">'+(lvl>0?fmtTr(o.detained):"–")+'</td>'+
+        '<td>'+(o.source?esc(o.source):(lvl>0?'<span style="color:var(--danger)">— kaynak yok —</span>':""))+'</td></tr>';
+    });
+    $("ctBody").innerHTML=html;
+    var nPlay=SCOPE.filter(inPlay).length;
+    var nCity=story.cities.filter(function(ct){ return ct.name && inPlay(ct.country); }).length;
+    $("kpiC").textContent=nPlay; $("kpiCity").textContent=nCity;
+  }
+  function fmtTr(n){ n=Number(n)||0; if(n>=1000000) return (n/1000000).toFixed(1).replace(".",",")+" mn"; if(n>=1000) return Math.round(n/1000)+" bin"; return String(n); }
+  function renderWide(){
+    var s=story.wide;
+    $("f_kicker").value=s.kicker; $("f_title1").value=s.title1; $("f_title2").value=s.title2;
+    $("f_subtitle").value=s.subtitle; $("f_day").value=s.day; $("f_dayMax").value=s.dayMax;
+    $("f_compareA").value=s.compareA; $("f_compareB").value=s.compareB;
+    $("daySlider").max=s.dayMax; $("daySlider").value=s.day;
+    document.querySelectorAll('#tagSeg button').forEach(function(b){ b.classList.toggle("on", Number(b.dataset.tag)===Number(s.sampleTag)); });
+    $("tagSeg").classList.toggle("live", Number(s.sampleTag)===0);
+    var ai=Number(s.autoIntro)!==0;
+    $("pbAutoIntro").textContent="Oto-açılış: "+(ai?"açık":"kapalı");
+    $("pbAutoIntro").classList.toggle("on", ai);
+    var big=Number(s.textBoost)>1.0001;
+    $("pbTextBoost").textContent="1080 çıkış: "+(big?"açık":"kapalı");
+    $("pbTextBoost").classList.toggle("on", big);
+  }
+
+  /* =========================================================================
+     7. SANITY PASS  (before air)
+     ====================================================================== */
+  function sanity(){
+    var issues=[], playSet={};
+    SCOPE.forEach(function(c){ if(inPlay(c)) playSet[c]=true; });
+    // country with level>0 but no city
+    SCOPE.forEach(function(c){
+      if(!inPlay(c)) return;
+      var o=story.countries[c];
+      var hasCity=story.cities.some(function(ct){ return ct.name && ct.country===c; });
+      if(!hasCity) issues.push(["err", NAMES[c]+" sahada (sev. "+o.level+") ama hiç şehri yok"]);
+      if(!o.source){
+        issues.push(["err", (o.peak>0||o.detained>0)
+          ? NAMES[c]+" rakamları var ama kaynağı yok — tartışmalı rakam kaynaksız yayınlanamaz"
+          : NAMES[c]+" için kaynak yok"]);
+      }
+    });
+    // a city whose country isn't in play
+    story.cities.forEach(function(ct){
+      if(ct.name && ct.country && !playSet[ct.country])
+        issues.push(["warn", ct.name+" şehri sahada olmayan bir ülkeye bağlı ("+(NAMES[ct.country]||ct.country)+")"]);
+    });
+    // dedupe
+    var seen={}, out=[];
+    issues.forEach(function(it){ var k=it[0]+it[1]; if(!seen[k]){ seen[k]=1; out.push(it); } });
+    var el=$("issues");
+    if(!out.length){ el.innerHTML='<div class="issue ok">✓ Denetim temiz — yayına hazır.</div>'; return; }
+    el.innerHTML=out.map(function(it){ return '<div class="issue '+(it[0]==="warn"?"warn":"")+'">'+(it[0]==="warn"?"⚠":"✕")+' <span>'+esc(it[1])+'</span></div>'; }).join("");
+  }
+
+  /* =========================================================================
+     8. PROVA SENARYOSU  (rehearsal scenario)
+     ====================================================================== */
+  var senTimers=[];
+  function senaryo(){
+    stopSenaryo();
+    var seq=[
+      [0,     function(){ sendCommand(9); say("açılış oynatılıyor"); }],
+      [7000,  function(){ sendCommand(1); say("Avrupa görünümü"); }],
+      [9500,  function(){ sendCommand(3); say("zaman — yayılma"); }],
+      [13000, function(){ story.wide.day=4; $("daySlider").value=4; commitSheet(); say("gün 4"); }],
+      [16000, function(){ flyTo("FRA"); say("Fransa'ya uç"); }],
+      [20000, function(){ sendCommand(4); say("fotoğraflar"); }],
+      [23000, function(){ sendCommand(22); }],
+      [24500, function(){ sendCommand(22); say("fotoğraf ilerliyor"); }],
+      [27000, function(){ flyTo("DEU"); say("Almanya'ya uç"); }],
+      [31000, function(){ sendCommand(5); say("Fransa–Almanya karşılaştırma"); }],
+      [35000, function(){ sendCommand(1); say("Avrupa'ya dön"); stopSenaryo(); }]
+    ];
+    seq.forEach(function(s){ senTimers.push(setTimeout(s[1], s[0])); });
+    $("btnSenaryo").classList.add("on");
+    function say(m){ log("🎬 "+m); }
+  }
+  function stopSenaryo(){ senTimers.forEach(clearTimeout); senTimers=[]; $("btnSenaryo").classList.remove("on"); }
+
+  /* =========================================================================
+     9. CONNECTION + STREAM
+     ====================================================================== */
+  function baseOrigin(){ return ($("baseUrl").value||"").trim().replace(/\/+$/,"").replace(/\/api\/v1$/,""); }
+  function setConn(t,cls){ $("connText").textContent=t; $("conn").className="pill"+(cls?" "+cls:""); }
+  var templatesById=new Map();
+  async function connect(){
+    var baseUrl=($("baseUrl").value||"").trim(), u=($("username").value||"").trim(), p=$("password").value;
+    if(!baseUrl||!u){ setConn("URL + kullanıcı gerekli","err"); return; }
+    try{
+      client=Airz.createClient({baseUrl:baseUrl});
+      var s=await client.auth.login(u,p);
+      setConn("bağlı · "+s.user.username,"ok"); log("Bağlandı: "+baseUrl+" ("+s.user.username+")","g");
+      try{ var tpls=await client.templates.list(); templatesById=new Map(tpls.map(function(t){return [t.id,t.name];})); }catch(e){ templatesById=new Map(); }
+      openStream(); await populateRundowns(); saveConn();
+    }catch(e){ client=null; setConn("bağlanamadı","err"); log("Bağlantı hatası: "+emsg(e)+" (parola / CORS :3467)","e"); }
+  }
+  function disconnect(){ closeStream(); client=null; rid=0; iid=0; $("rundownSel").innerHTML='<option value="">— önce bağlan —</option>'; $("itemSel").innerHTML='<option value="">—</option>'; setConn("bağlı değil"); $("itemPill").textContent="Öğe: —"; $("pvFrame").style.display="none"; $("pvNote").style.display="flex"; log("Bağlantı kesildi"); }
+  var savedSel={rid:"",iid:""};
+  async function populateRundowns(){
+    var list=await client.rundowns.list();
+    $("rundownSel").innerHTML='<option value="">— rundown seç —</option>'+list.map(function(r){ return '<option value="'+r.id+'">'+esc(r.name)+' ('+r.itemCount+')</option>'; }).join("");
+    if(savedSel.rid){ $("rundownSel").value=savedSel.rid; await populateItems(); }
+  }
+  function itemLabel(it){ var t=it.templateId?(templatesById.get(it.templateId)||("şablon "+it.templateId)):null; var title=(it.title||"").trim(); if(title) return title+(t?" · "+t:""); return t||((it.type||"öğe")+" #"+it.id); }
+  async function populateItems(){
+    var r=Number($("rundownSel").value); $("itemSel").innerHTML='<option value="">—</option>'; if(!client||!r) return;
+    var items=await client.items.list(r);
+    $("itemSel").innerHTML='<option value="">— öğe seç —</option>'+items.map(function(it){ return '<option value="'+it.id+'">'+esc(itemLabel(it))+'</option>'; }).join("");
+    if(savedSel.iid){ $("itemSel").value=savedSel.iid; await onItemSelected(); }
+  }
+  async function onItemSelected(){
+    rid=Number($("rundownSel").value); iid=Number($("itemSel").value);
+    var items=$("itemSel"); $("itemPill").textContent="Öğe: "+(items.options[items.selectedIndex]?items.options[items.selectedIndex].text:"—");
+    if(rid&&iid){
+      lastSent={};
+      $("pvFrame").src=baseOrigin()+"/interactive/"+rid+"/"+iid; $("pvFrame").style.display="block"; $("pvNote").style.display="none";
+      log("Öğe seçildi — hikâye sayfası gönderiliyor; duvar durumu okunuyor","w");
+      commitSheet();
+      try{ var it=await client.items.get(rid,iid); if(it&&it.data) applyWallState(it.data); }catch(e){}
+    }
+    saveConn();
+  }
+  var stream=null, streamOffs=[];
+  function openStream(){ closeStream(); if(!client) return;
+    try{ stream=client.stream({onState:function(st){ if(st==="open") log("Canlı akış bağlı — duvar durumu izleniyor","g"); }});
+      streamOffs.push(stream.on("item.updated", function(e){ var d=e.data||{}; if(Number(d.itemId)!==iid) return; var data=d.data||(d.item&&d.item.data); if(data) applyWallState(data); }));
+    }catch(e){ log("akış hatası: "+emsg(e),"e"); } }
+  function closeStream(){ streamOffs.forEach(function(o){try{o();}catch(e){}}); streamOffs=[]; if(stream){ try{stream.close();}catch(e){} stream=null; } }
+
+  /* =========================================================================
+     10. CSV / JSON  load + export
+     ====================================================================== */
+  function loadFile(file){
+    var reader=new FileReader();
+    reader.onload=function(){ var text=String(reader.result||"");
+      try{
+        if(/\.json$/i.test(file.name) || text.trim().charAt(0)==="{"){ var j=JSON.parse(text); applyLoadedStory(j); log("JSON yüklendi: "+file.name,"g"); }
+        else { loadCsvCountries(text); log("CSV ülke satırları yüklendi: "+file.name,"g"); }
+        afterStoryChange();
+      }catch(e){ log("Dosya okunamadı: "+emsg(e),"e"); }
+    };
+    reader.readAsText(file);
+  }
+  function applyLoadedStory(j){
+    if(j.wide) story.wide=Object.assign(story.wide, j.wide);
+    if(j.countries) Object.keys(j.countries).forEach(function(c){ if(story.countries[c]) story.countries[c]=Object.assign(story.countries[c], j.countries[c]); });
+    if(Array.isArray(j.cities)) story.cities=j.cities.slice(0,30);
+    if(Array.isArray(j.events)) story.events=j.events.slice(0,8);
+    if(Array.isArray(j.photos)) story.photos=j.photos.slice(0,12);
+  }
+  function loadCsvCountries(text){
+    var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+    if(!lines.length) return;
+    var header=splitCsv(lines[0]).map(function(h){return h.trim().toLowerCase();});
+    for(var i=1;i<lines.length;i++){ var cols=splitCsv(lines[i]); var row={}; header.forEach(function(h,j){ row[h]=cols[j]!=null?cols[j].trim():""; });
+      var code=(row.code||"").toUpperCase(); if(!story.countries[code]) continue;
+      var o=story.countries[code];
+      if(row.level!=="") o.level=Number(row.level)||0;
+      if(row.firstday!==undefined && row.firstday!=="") o.firstDay=Number(row.firstday)||0;
+      if(row.cities!==undefined && row.cities!=="") o.cities=Number(row.cities)||0;
+      if(row.peak!==undefined && row.peak!=="") o.peak=Number(row.peak)||0;
+      if(row.detained!==undefined && row.detained!=="") o.detained=Number(row.detained)||0;
+      if(row.source!==undefined) o.source=row.source;
+      if(row.daily!==undefined) o.daily=row.daily;
+    }
+  }
+  function splitCsv(line){ var out=[], cur="", q=false; for(var i=0;i<line.length;i++){ var ch=line[i]; if(q){ if(ch==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; } else { if(ch===','){ out.push(cur); cur=""; } else if(ch==='"'){ q=true; } else cur+=ch; } } out.push(cur); return out; }
+  function exportJson(){
+    var blob=JSON.stringify(story,null,2);
+    var ta=document.createElement("textarea"); ta.value=blob; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); log("Hikâye JSON panoya kopyalandı ("+blob.length+" karakter)","g"); }catch(e){ log("Kopyalanamadı — konsola yazıldı","w"); console.log(blob); }
+    document.body.removeChild(ta);
+  }
+
+  /* =========================================================================
+     11. WIRING + BOOT
+     ====================================================================== */
+  function afterStoryChange(){ renderWide(); renderCountries(); sanity(); renderWall(); commitSheet(); }
+  function log(msg,kind){ var l=$("log"); var d=document.createElement("div"); d.innerHTML='<span class="t">'+new Date().toLocaleTimeString()+'</span> '+(kind?'<span class="'+kind+'">'+msg+'</span>':msg); l.prepend(d); while(l.childNodes.length>140) l.removeChild(l.lastChild); }
+
+  var LS="airz.europe.conn";
+  function saveConn(){ try{ localStorage.setItem(LS, JSON.stringify({baseUrl:$("baseUrl").value, username:$("username").value, rid:$("rundownSel").value, iid:$("itemSel").value})); }catch(e){} }
+  function loadConn(){ try{ var c=JSON.parse(localStorage.getItem(LS)||"{}"); $("baseUrl").value=c.baseUrl||"http://localhost:3467"; $("username").value=c.username||"admin"; savedSel.rid=c.rid||""; savedSel.iid=c.iid||""; }catch(e){ $("baseUrl").value="http://localhost:3467"; $("username").value="admin"; } }
+
+  function wire(){
+    $("btnSettings").addEventListener("click",function(){ $("connDrawer").classList.add("show"); });
+    $("btnCloseConn").addEventListener("click",function(){ $("connDrawer").classList.remove("show"); });
+    $("btnSheet").addEventListener("click",function(){ $("sheetDrawer").classList.add("show"); });
+    $("btnCloseSheet").addEventListener("click",function(){ $("sheetDrawer").classList.remove("show"); });
+    [ "connDrawer","sheetDrawer" ].forEach(function(id){ $(id).addEventListener("click",function(e){ if(e.target===$(id)) $(id).classList.remove("show"); }); });
+    $("btnConnect").addEventListener("click",connect);
+    $("btnDisconnect").addEventListener("click",disconnect);
+    $("rundownSel").addEventListener("change",populateItems);
+    $("itemSel").addEventListener("change",onItemSelected);
+
+    // story-wide fields
+    var wmap={f_kicker:"kicker",f_title1:"title1",f_title2:"title2",f_subtitle:"subtitle",f_compareA:"compareA",f_compareB:"compareB"};
+    Object.keys(wmap).forEach(function(id){ $(id).addEventListener("input",function(){ story.wide[wmap[id]]=$(id).value; commitSheet(); }); });
+    $("f_day").addEventListener("input",function(){ story.wide.day=Number($("f_day").value)||1; $("daySlider").value=story.wide.day; renderWall(); commitSheet(); });
+    $("f_dayMax").addEventListener("input",function(){ story.wide.dayMax=Number($("f_dayMax").value)||1; $("daySlider").max=story.wide.dayMax; renderWall(); commitSheet(); });
+
+    // sampleTag switch
+    document.querySelectorAll('#tagSeg button').forEach(function(b){ b.addEventListener("click",function(){ story.wide.sampleTag=Number(b.dataset.tag); renderWide(); commitSheet(); log("Etiket → "+(story.wide.sampleTag?"ÖRNEK VERİ (prova)":"YAYIN"),"w"); }); });
+
+    // country fly buttons
+    $("ctBody").addEventListener("click",function(e){ var b=e.target.closest("button[data-fly]"); if(b && !b.disabled) flyTo(b.dataset.fly); });
+
+    // producer command buttons
+    document.querySelectorAll('[data-cmd]').forEach(function(b){ b.addEventListener("click",function(){ sendCommand(Number(b.dataset.cmd)); }); });
+
+    // day slider
+    var ds=$("daySlider");
+    ds.addEventListener("input",function(){ dayDragging=true; story.wide.day=Number(ds.value)||1; $("f_day").value=story.wide.day; renderWall(); });
+    ds.addEventListener("change",function(){ dayDragging=false; commitSheet(); log("Gün → "+story.wide.day); });
+
+    $("pbAutoIntro").addEventListener("click",function(){ story.wide.autoIntro = Number(story.wide.autoIntro)!==0 ? 0 : 1; renderWide(); commitSheet(); log("Oto-açılış → "+(story.wide.autoIntro?"açık (alışta oynar)":"kapalı (cue ile)"),"w"); });
+    $("pbTextBoost").addEventListener("click",function(){ story.wide.textBoost = Number(story.wide.textBoost)>1.0001 ? 1 : 1.4; renderWide(); commitSheet(); log("1080 çıkış büyük yazı → "+(Number(story.wide.textBoost)>1.0001?"açık (textBoost 1.4)":"kapalı (textBoost 1)"),"w"); });
+
+    $("btnSenaryo").addEventListener("click",function(){ senTimers.length?stopSenaryo():senaryo(); });
+
+    // sheet drawer
+    $("fileInput").addEventListener("change",function(e){ var f=e.target.files&&e.target.files[0]; if(f) loadFile(f); });
+    $("btnLoadSample").addEventListener("click",function(){ story=buildSample(); afterStoryChange(); log("Örnek hikâye geri yüklendi","g"); });
+    $("btnExport").addEventListener("click",exportJson);
+
+    ["baseUrl","username"].forEach(function(k){ $(k).addEventListener("input",saveConn); });
+
+    document.addEventListener("keydown",function(e){
+      if(/input|select|textarea/i.test((e.target.tagName||""))) return;
+      var map={"1":1,"2":2,"3":3,"4":4,"5":5,"9":9};
+      if(e.key===" "){ e.preventDefault(); sendCommand(6); return; }
+      if(e.key==="ArrowLeft"){ sendCommand(21); return; }
+      if(e.key==="ArrowRight"){ sendCommand(22); return; }
+      if(map[e.key]!=null){ sendCommand(map[e.key]); }
+    });
+  }
+
+  // ---- boot ----
+  if(typeof Airz==="undefined"){ setConn("SDK yüklenmedi","err"); }
+  story=buildSample();
+  loadConn(); wire(); renderWide(); renderCountries(); sanity(); renderWall();
+  log("Hazır. Sayfayı düzenleyin, bağlanıp öğe seçin; düğmeler komutları, ▶ ülkeye uçuşu gönderir. Controller yoksa kuru çalışır.");
+
+  // Dev handle for console inspection
+  window.__eu={ story:function(){return story;}, flatten:flatten, sanity:sanity, commit:commitSheet, wall:function(){return {viewLevel:viewLevel,country:expectCountry,playing:playing};} };
+})();
+</script>
+</body>
+</html>
