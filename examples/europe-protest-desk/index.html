@@ -219,6 +219,10 @@
         <iframe id="pvFrame" title="interactive preview" style="display:none"></iframe>
         <div id="pvNote" class="pvnote">Bağlanınca Controller'ın <b>/interactive</b> duvar sayfası burada görünür.</div>
       </div>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+        <button class="pb sm" id="btnOpenPreview" disabled>Önizlemeyi yeni sekmede aç ↗</button>
+        <span id="pvHint" class="hint" style="margin:0"></span>
+      </div>
       <h2 class="sec" style="margin-top:12px">Duvar durumu (sahne yayınlar)</h2>
       <div class="wallrow"><span class="k">Görünüm</span><span class="v" id="w_level">—</span></div>
       <div class="wallrow"><span class="k">Ülke</span><span class="v" id="w_country">—</span></div>
@@ -581,7 +585,7 @@ FRA,4,1,18,410000,1240,İçişleri · sendikalar,"3,6,8,9,7,10,12,9,11"</textare
       openStream(); await populateRundowns(); saveConn();
     }catch(e){ client=null; setConn("bağlanamadı","err"); log("Bağlantı hatası: "+emsg(e)+" (parola / CORS :3467)","e"); }
   }
-  function disconnect(){ closeStream(); client=null; rid=0; iid=0; $("rundownSel").innerHTML='<option value="">— önce bağlan —</option>'; $("itemSel").innerHTML='<option value="">—</option>'; setConn("bağlı değil"); $("itemPill").textContent="Öğe: —"; $("pvFrame").style.display="none"; $("pvNote").style.display="flex"; log("Bağlantı kesildi"); }
+  function disconnect(){ closeStream(); client=null; rid=0; iid=0; $("rundownSel").innerHTML='<option value="">— önce bağlan —</option>'; $("itemSel").innerHTML='<option value="">—</option>'; setConn("bağlı değil"); $("itemPill").textContent="Öğe: —"; $("pvFrame").style.display="none"; $("pvNote").style.display="flex"; $("btnOpenPreview").disabled=true; log("Bağlantı kesildi"); }
   var savedSel={rid:"",iid:""};
   async function populateRundowns(){
     var list=await client.rundowns.list();
@@ -600,12 +604,31 @@ FRA,4,1,18,410000,1240,İçişleri · sendikalar,"3,6,8,9,7,10,12,9,11"</textare
     var items=$("itemSel"); $("itemPill").textContent="Öğe: "+(items.options[items.selectedIndex]?items.options[items.selectedIndex].text:"—");
     if(rid&&iid){
       lastSent={};
-      $("pvFrame").src=baseOrigin()+"/interactive/"+rid+"/"+iid; $("pvFrame").style.display="block"; $("pvNote").style.display="none";
+      openPreview();
       log("Öğe seçildi — hikâye sayfası gönderiliyor; duvar durumu okunuyor","w");
       commitSheet();
       try{ var it=await client.items.get(rid,iid); if(it&&it.data) applyWallState(it.data); }catch(e){}
     }
     saveConn();
+  }
+  // The /interactive page carries X-Frame-Options: SAMEORIGIN, so it can only be
+  // framed when the desk is served from the SAME origin as the controller. From
+  // another origin (e.g. :3000 vs :3467) the iframe is refused — open it in a new
+  // tab instead (top-level navigation is allowed). The token rides in ?t= so the
+  // preview auto-signs-in (interactive.html reads q.get("t")).
+  var previewUrl="";
+  function previewHref(){ var o=baseOrigin(); if(!o||!rid||!iid) return ""; var tok=client&&client.getToken?(client.getToken()||""):""; return o+"/interactive/"+rid+"/"+iid+(tok?("?t="+encodeURIComponent(tok)):""); }
+  function sameOriginAsController(){ try{ return new URL(baseOrigin()).origin===location.origin; }catch(e){ return false; } }
+  function openPreview(){
+    previewUrl=previewHref(); $("btnOpenPreview").disabled=!previewUrl;
+    if(!previewUrl){ $("pvFrame").style.display="none"; $("pvNote").style.display="flex"; return; }
+    if(sameOriginAsController()){
+      $("pvFrame").src=previewUrl; $("pvFrame").style.display="block"; $("pvNote").style.display="none"; $("pvHint").textContent="";
+    } else {
+      $("pvFrame").style.display="none"; $("pvNote").style.display="flex";
+      $("pvNote").innerHTML='Controller farklı bir kaynakta (<b>'+esc(baseOrigin())+'</b>). Tarayıcı güvenlik gereği (X-Frame-Options) duvarı buraya gömemez — <b>“Önizlemeyi yeni sekmede aç”</b> ile açın.';
+      $("pvHint").textContent="Gömülü önizleme yalnızca masa Controller ile aynı kaynaktan sunulduğunda çalışır.";
+    }
   }
   var stream=null, streamOffs=[];
   function openStream(){ closeStream(); if(!client) return;
@@ -677,6 +700,7 @@ FRA,4,1,18,410000,1240,İçişleri · sendikalar,"3,6,8,9,7,10,12,9,11"</textare
     [ "connDrawer","sheetDrawer" ].forEach(function(id){ $(id).addEventListener("click",function(e){ if(e.target===$(id)) $(id).classList.remove("show"); }); });
     $("btnConnect").addEventListener("click",connect);
     $("btnDisconnect").addEventListener("click",disconnect);
+    $("btnOpenPreview").addEventListener("click",function(){ var u=previewUrl||previewHref(); if(u){ window.open(u,"_blank","noopener"); log("Önizleme yeni sekmede açıldı"); } });
     $("rundownSel").addEventListener("change",populateItems);
     $("itemSel").addEventListener("change",onItemSelected);
 
