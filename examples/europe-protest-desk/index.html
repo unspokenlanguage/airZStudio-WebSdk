@@ -611,24 +611,19 @@ FRA,4,1,18,410000,1240,İçişleri · sendikalar,"3,6,8,9,7,10,12,9,11"</textare
     }
     saveConn();
   }
-  // The /interactive page carries X-Frame-Options: SAMEORIGIN, so it can only be
-  // framed when the desk is served from the SAME origin as the controller. From
-  // another origin (e.g. :3000 vs :3467) the iframe is refused — open it in a new
-  // tab instead (top-level navigation is allowed). The token rides in ?t= so the
-  // preview auto-signs-in (interactive.html reads q.get("t")).
+  // /interactive is built to be framed (parentOrigin, chrome=embed) and self-syncs
+  // with the Controller, so embedding it follows our writes with no extra wiring.
+  // It frames when the Controller allows this origin (CSP frame-ancestors); an
+  // older Controller still sends X-Frame-Options: SAMEORIGIN and the frame stays
+  // blank — then use the new tab. The token rides in ?t=.
   var previewUrl="";
   function previewHref(){ var o=baseOrigin(); if(!o||!rid||!iid) return ""; var tok=client&&client.getToken?(client.getToken()||""):""; return o+"/interactive/"+rid+"/"+iid+(tok?("?t="+encodeURIComponent(tok)):""); }
-  function sameOriginAsController(){ try{ return new URL(baseOrigin()).origin===location.origin; }catch(e){ return false; } }
+  function embedUrl(){ var b=previewHref(); if(!b) return ""; var sep=b.indexOf("?")>=0?"&":"?"; return b+sep+"parentOrigin="+encodeURIComponent(location.origin)+"&chrome=embed&role=control"; }
   function openPreview(){
     previewUrl=previewHref(); $("btnOpenPreview").disabled=!previewUrl;
-    if(!previewUrl){ $("pvFrame").style.display="none"; $("pvNote").style.display="flex"; return; }
-    if(sameOriginAsController()){
-      $("pvFrame").src=previewUrl; $("pvFrame").style.display="block"; $("pvNote").style.display="none"; $("pvHint").textContent="";
-    } else {
-      $("pvFrame").style.display="none"; $("pvNote").style.display="flex";
-      $("pvNote").innerHTML='Controller farklı bir kaynakta (<b>'+esc(baseOrigin())+'</b>). Tarayıcı güvenlik gereği (X-Frame-Options) duvarı buraya gömemez — <b>“Önizlemeyi yeni sekmede aç”</b> ile açın.';
-      $("pvHint").textContent="Gömülü önizleme yalnızca masa Controller ile aynı kaynaktan sunulduğunda çalışır.";
-    }
+    if(!previewUrl){ $("pvFrame").style.display="none"; $("pvNote").style.display="flex"; $("pvHint").textContent=""; return; }
+    $("pvFrame").src=embedUrl(); $("pvFrame").style.display="block"; $("pvNote").style.display="none";
+    $("pvHint").innerHTML='Gerçek duvar gömülü. Boş kalırsa (Controller bu kaynağı çerçevelemeye izin vermiyor) <b>“yeni sekmede aç”</b>.';
   }
   var stream=null, streamOffs=[];
   function openStream(){ closeStream(); if(!client) return;

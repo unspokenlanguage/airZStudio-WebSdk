@@ -51,18 +51,19 @@ Or double-click **`run-tjk-desk.cmd`**.
   the scene's `flash` on change; speed slider + freeze), paddock auto-cycle, race
   events (jockey change, late Koşmaz that closes the lists up, photo finish), and
   a one-button **Senaryo** (~2 min hands-free showcase).
-- **Preview** — there's always an **in-window** preview and a full-fidelity option:
-  - **In-window** is the vendored `tjk.riv` rendered on a canvas, driven live by the
-    same data the desk sends (triggers · frame · dial · card scalars). Lists (the
-    running-order badges, the sidebar) and the scene's Luau scripts (clock, paging,
-    camera) don't run in the web runtime, so judge those on air. This is the preview
-    whenever the desk is **not** served from the controller's origin, and when
-    offline.
-  - **Full fidelity** is the Controller's own `/interactive/<rundown>/<item>` page.
-    It's served with `X-Frame-Options: SAMEORIGIN`, so it only **embeds** when the
-    desk is served from the **same origin** as the controller. From another origin
-    use **"Önizlemeyi yeni sekmede aç ↗"**, which opens it in a new tab with the auth
-    token in `?t=` (auto sign-in) — the real scene with the real data, lists and all.
+- **Preview** — when connected, the panel **embeds the Controller's own
+  `/interactive/<rundown>/<item>` page** (the real scene with the real data, lists
+  and all), with `?parentOrigin=…&chrome=embed&role=control` and the auth token in
+  `?t=`. That page self-syncs with the Controller, so the embed follows the desk's
+  writes. It frames whenever the Controller allows this origin via
+  `Content-Security-Policy: frame-ancestors` — Controller ≥ the framing update lists
+  `localhost:3000/3001` and the LAN IPs. An **older** Controller still sends
+  `X-Frame-Options: SAMEORIGIN` and the frame stays blank; then use **"Önizlemeyi
+  yeni sekmede aç ↗"** (same page, new tab, not subject to framing). With **no**
+  controller the desk runs dry and shows the vendored `tjk.riv` on a local canvas
+  (triggers/frame/dial only — lists and the Luau scripts need the Controller).
+  Note: the full player's Luau + WebGPU need a **secure context**, so serve the desk
+  from **`http://localhost`** (or HTTPS) rather than a bare LAN IP for full fidelity.
 - **Sidebar paging** — for fields over ~9 runners the scene auto-scrolls the
   `sideRunners` sidebar (rest a page, glide 0.6 s, loop back). The desk already
   sends all 16 rows; tune the pace from **Ayarlar → Yan panel kaydırma**

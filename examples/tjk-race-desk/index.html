@@ -1101,27 +1101,33 @@
     if(riveInst){ showPreview("local"); if(scene) feedLocalRive(flatten()); startLocalClock(); }
     else initLocalRive();
   }
+  // The iframe embed URL: /interactive is built to be framed (parentOrigin,
+  // chrome=embed) and self-syncs with the Controller, so the embed follows our
+  // writes with no extra wiring; the token rides in ?t=. The new-tab button uses
+  // the plainer previewHref (no chrome=embed) for a standalone full view.
+  function embedUrl(){
+    var base=previewHref(); if(!base) return "";
+    var sep = base.indexOf("?")>=0 ? "&" : "?";
+    return base + sep + "parentOrigin=" + encodeURIComponent(location.origin) + "&chrome=embed&role=control";
+  }
   function openIframePreview(){
-    previewUrl=previewHref();
+    previewUrl=previewHref();                 // standalone URL for the new tab
     $("btnOpenPreview").disabled = !previewUrl;
-    // Full-fidelity in-window embed is only possible SAME-ORIGIN: the /interactive
-    // page sends X-Frame-Options: SAMEORIGIN, so a cross-origin iframe is refused.
-    if(client && rid && iid && previewUrl && sameOriginAsController()){
-      stopLocalClock();
-      $("pvFrame").src = previewUrl; showPreview("iframe");
-      $("pvHint").textContent = "";
-      log("Önizleme (gömülü, tam) → "+previewUrl.replace(/\?t=.*$/,""));
+    if(!client || !rid || !iid || !previewUrl){
+      // Offline: the vendored local scene is the only in-window option.
+      showLocalPreview();
+      $("pvHint").textContent = "Yerel sahne önizlemesi (Controller yok). Bağlanınca gerçek sahne gömülür.";
       return;
     }
-    // Otherwise (cross-origin, or offline): keep a working IN-WINDOW preview — the
-    // local scene on the canvas, driven by the same data we send — and offer the
-    // new tab for the full real wall.
-    showLocalPreview();
-    if(client && rid && iid){
-      $("pvHint").innerHTML = 'Pencere içi: <b>yerel sahne</b> (kısmi — tetik · çerçeve · dial; liste ve Luau betikleri çalışmaz). Tam gerçek duvar için <b>“yeni sekmede aç”</b>.';
-    } else {
-      $("pvHint").textContent = "Yerel sahne önizlemesi (Controller yok). Bağlanınca tam önizleme için yeni sekmede açın.";
-    }
+    // Connected: embed the REAL /interactive page — full fidelity, self-syncing.
+    // It frames when the Controller allows this origin (CSP frame-ancestors). If
+    // the frame stays blank, an older Controller is still sending X-Frame-Options:
+    // SAMEORIGIN — update/restart it, or use the new tab meanwhile.
+    stopLocalClock();
+    $("pvFrame").src = embedUrl();
+    showPreview("iframe");
+    $("pvHint").innerHTML = 'Gerçek sahne gömülü. Boş kalırsa (Controller bu kaynağı çerçevelemeye izin vermiyor) <b>“yeni sekmede aç”</b>.';
+    log("Önizleme (gömülü) → /interactive/"+rid+"/"+iid);
   }
   async function initLocalRive(){
     try{
@@ -1136,6 +1142,10 @@
           log("Yerel tjk.riv önizlemesi yüklendi"+(sms.length?(" · "+sms[0]):""));
           if(scene) feedLocalRive(flatten());
           startLocalClock();          // see below — the file's clock.luau can't run in the web runtime
+          // The scene starts HIDDEN; if we're on air, re-fire animateIn so the
+          // local canvas shows the frame instead of a blank hidden state (the
+          // live canvas can miss a trigger fired before the .riv finished loading).
+          if(layerState && layerState.ekran==="in"){ setTimeout(function(){ try{ fireLocalRive("animateIn"); }catch(e){} }, 120); }
         },
         onLoadError:function(e){ log("Yerel rive hata: "+e,"e"); showPreview("none"); }
       });

@@ -70,11 +70,18 @@ Confirmed with the scene author against the built scene
 
 ## Preview
 
-The preview is the Controller's own `/interactive/<rundown>/<item>` page (the real
-wall) when connected. There is **no local `.riv` preview** for this scene: its
-camera, lat/lon projection and photo carousel are Luau, which the stock
-`@rive-app/canvas` web runtime doesn't run. With no controller the desk runs dry
-(payloads in the log) and the wall-state mirror reflects what it would send.
+When connected, the panel **embeds** the Controller's own
+`/interactive/<rundown>/<item>` page (the real wall) with
+`?parentOrigin=…&chrome=embed&role=control` and the token in `?t=`; it self-syncs,
+so the embed follows the desk's writes. It frames whenever the Controller allows
+this origin via `Content-Security-Policy: frame-ancestors` (the framing update lists
+`localhost:3000/3001` + the LAN IPs); an older Controller still sends
+`X-Frame-Options: SAMEORIGIN` and the frame stays blank — then use **"Önizlemeyi
+yeni sekmede aç"**. There is **no local `.riv` preview** for this scene (its camera,
+projection and carousel are Luau, which the stock web runtime doesn't run). With no
+controller the desk runs dry and the wall-state mirror reflects what it would send.
+Serve the desk from **`http://localhost`** (or HTTPS) for the full player — Luau +
+WebGPU need a secure context.
 
 ## Swapping the demo for a real feed
 
