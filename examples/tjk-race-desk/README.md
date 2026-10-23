@@ -37,24 +37,42 @@ Or double-click **`run-tjk-desk.cmd`**.
   two centre animations never fight. The Protesto **band** is a frontmost overlay
   and coexists (and the race frame drops it, as the scene does); the sidebar is
   independent.
-- **Race strip** (bottom) — `BAŞLAT` sets `frame=race` and runs the simulator:
-  `dial/progress` ~3×/s, overtakes change `siralama` on two rows, a split row is
-  added at each pole. `BİTİR` builds `results` from the final order; `KESİNLEŞTİR`
-  fires `resultsOfficial`; `PROTESTO` toggles the band/badge.
+- **Race strip** (bottom) — two separate controls:
+  - **YARIŞ EKRANI** (manual, on-air): sets `frame=race` (plays the race-start
+    transition) and brings the graphic in if needed, then shows the running order
+    at its seeded positions. It does **not** auto-advance — operator-timed, for a
+    real broadcast. Run it in **CANLI** so it drives the program wall live.
+  - **SİMÜLASYON** (demo toggle): the clock-driven run for rehearsal —
+    `dial/progress` ~3×/s, overtakes change `siralama` on two rows, a split row is
+    added at each pole. A second press stops it.
+  - **BİTİR** builds `results` from the final order; **KESİNLEŞTİR** fires
+    `resultsOfficial`; **PROTESTO** toggles the band/badge.
 - **Simulation** — odds drift (a random walk pulled toward each horse's AGF, with
   the scene's `flash` on change; speed slider + freeze), paddock auto-cycle, race
   events (jockey change, late Koşmaz that closes the lists up, photo finish), and
   a one-button **Senaryo** (~2 min hands-free showcase).
-- **Preview** — when connected, the Controller's own `/interactive/<rundown>/<item>`
-  page is embedded as the real scene with the real data. With no controller, the
-  desk runs **dry** (payloads in the log panel) and loads the vendored `tjk.riv`
-  locally for a visual taste (triggers / frame / dial; lists render fully only
-  through the Controller).
+- **Preview** — there's always an **in-window** preview and a full-fidelity option:
+  - **In-window** is the vendored `tjk.riv` rendered on a canvas, driven live by the
+    same data the desk sends (triggers · frame · dial · card scalars). Lists (the
+    running-order badges, the sidebar) and the scene's Luau scripts (clock, paging,
+    camera) don't run in the web runtime, so judge those on air. This is the preview
+    whenever the desk is **not** served from the controller's origin, and when
+    offline.
+  - **Full fidelity** is the Controller's own `/interactive/<rundown>/<item>` page.
+    It's served with `X-Frame-Options: SAMEORIGIN`, so it only **embeds** when the
+    desk is served from the **same origin** as the controller. From another origin
+    use **"Önizlemeyi yeni sekmede aç ↗"**, which opens it in a new tab with the auth
+    token in `?t=` (auto sign-in) — the real scene with the real data, lists and all.
+- **Sidebar paging** — for fields over ~9 runners the scene auto-scrolls the
+  `sideRunners` sidebar (rest a page, glide 0.6 s, loop back). The desk already
+  sends all 16 rows; tune the pace from **Ayarlar → Yan panel kaydırma**
+  (`sideScrollSecs`, default 3 s; `0` holds page 1). The scene writes `sideScrollY`
+  itself — the desk never sends it.
 
 ## Keys
 
 `Space` TAKE · `Esc` current layer out (`Shift+Esc` = animateOut) · `↑ ↓` select
-runner · `Enter` card · `B` başlat · `N` bitir · `F1` L-frame/Yarış · `F2` Sıralı
+runner · `Enter` card · `B` yarış ekranı · `S` simülasyon · `N` bitir · `F1` L-frame/Yarış · `F2` Sıralı
 2'li · `F3` Havuz · `F4` Sonuç · `F5` Protesto.
 
 ## Cue / live (HAZIRLA ⇄ CANLI)
@@ -96,14 +114,20 @@ it sets `clockLive = 0` (stopping the absent script) and writes `clockTime`,
 On the **Controller path** `clockLive` stays `1` and the playout machine's clock
 drives it.
 
-You may still see this line once in the browser console for the local preview:
+You may still see these lines in the browser console for the local preview:
 
 ```
 ScriptAsset doesn't have a generator function clock
+ScriptAsset doesn't have a generator function side_scroll
 ```
 
-It comes from the file import (the runtime registers the script but can't run it)
-and is purely cosmetic — nothing to chase.
+They come from the scene's own Luau scripts (the clock, and the sidebar-paging
+`side_scroll`) — the web runtime registers them on import but can't run them. Both
+are purely cosmetic (local preview only) — nothing to chase. One consequence:
+because `side_scroll` doesn't run in the local preview, **the sidebar holds page 1
+there even with 10+ runners** — don't judge the paging from the desk preview. On
+air the engine runs the script and pages through the field; verify it through the
+Controller, not the local `.riv`.
 
 ## Swapping the demo for a real feed
 

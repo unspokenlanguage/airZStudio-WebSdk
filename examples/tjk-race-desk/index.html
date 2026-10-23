@@ -143,6 +143,7 @@
     .bigbtn { width:100%; padding:11px; border-radius:10px; border:1px solid var(--border2); background:var(--row); color:var(--text); font-weight:800; font-size:13px; letter-spacing:.4px; }
     .bigbtn.go { background:linear-gradient(180deg,#143a28,#0f2e1f); border-color:rgba(57,217,138,.4); color:var(--accent); }
     .bigbtn.go.running { background:var(--accent); color:#06231a; }
+    .bigbtn.running { background:var(--accent); color:#06231a; border-color:transparent; }
     .bigbtn + .bigbtn { margin-top:8px; }
     .progwrap { }
     .proglbl { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px; }
@@ -188,7 +189,7 @@
     </div>
     <span id="readyPill" class="pill">Hazır değil</span>
     <span class="spacer"></span>
-    <span class="kbd">Space TAKE · Esc ÇIK · ↑↓ at · Enter karta al · B başlat · N bitir</span>
+    <span class="kbd">Space TAKE · Esc ÇIK · ↑↓ at · Enter karta al · B yarış ekranı · S simülasyon · N bitir</span>
     <span id="onairPill" class="air">● YAYIN DIŞI</span>
     <button class="iconbtn" id="btnSettings">⚙ Bağlantı</button>
   </div>
@@ -229,6 +230,10 @@
         <canvas id="pvCanvas" width="1280" height="720" style="display:none"></canvas>
         <div id="pvNote" class="pvnote">Bağlanınca Controller'ın <b>/interactive</b> sayfası burada canlı görünür.</div>
       </div>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px">
+        <button class="b sm" id="btnOpenPreview" disabled>Önizlemeyi yeni sekmede aç ↗</button>
+        <span id="pvHint" class="hint" style="margin:0"></span>
+      </div>
 
       <h2 class="sec" style="margin-top:12px">Katmanlar</h2>
       <div id="layers"></div>
@@ -256,7 +261,8 @@
   <!-- ===================== FOOTER RACE STRIP ===================== -->
   <div class="foot">
     <div>
-      <button class="bigbtn go" id="btnStart">BAŞLAT ▶</button>
+      <button class="bigbtn go" id="btnRaceScreen" title="Yarış çerçevesini yayına alır (frame=race + gerekirse animateIn). Elle — otomatik ilerletmez.">YARIŞ EKRANI ▶</button>
+      <button class="bigbtn" id="btnSim" title="Saat güdümlü örnek yarışı oynatır: dial, geçişler, ara dereceler. Prova/demo içindir.">SİMÜLASYON ▶</button>
       <button class="bigbtn" id="btnFinish">BİTİR · SONUÇ</button>
     </div>
     <div class="progwrap">
@@ -299,6 +305,9 @@
         <div class="field"><label>Saat (clockLive)</label>
           <select id="setClock"><option value="1">Canlı</option><option value="0">Elle</option></select></div>
       </div>
+      <div class="field"><label>Yan panel kaydırma (sideScrollSecs, sn)</label>
+        <input id="setSideScroll" type="number" min="0" step="0.5" value="3">
+        <div class="hint" style="margin-top:4px">10+ koşucuda yan panel otomatik sayfalanır; her sayfa bu kadar saniye bekler. <b>0</b> = ilk sayfada sabit kalır.</div></div>
       <div class="field"><label>Sponsor</label><input id="setSponsor" value="airZ Studio"></div>
       <div class="field"><label>Video kaynağı (video)</label><input id="setVideo" placeholder="route://1-0 · decklink://0 · play://clip.mp4 LOOP"></div>
       <div class="hint">Bağlantı yoksa masa <b>kuru çalışır</b>: gönderilecek veriler aşağıdaki kayıt panosuna yazılır ve önizleme için yerel <code>tjk.riv</code> yüklenir (katman/çerçeve/dial; listeler yalnızca Controller önizlemesinde tam görünür).</div>
@@ -417,6 +426,7 @@
     return {
       race:{ city:race.city, raceNo:race.no+".KOŞU", conditions:race.conditions, distanceSurface:race.distanceSurface },
       frame:"lframe", side:0, track:race.track, runnerSlot:0, clockLive:1,
+      sideScrollSecs:($("setSideScroll")?Number($("setSideScroll").value):3),
       sponsor:$("setSponsor").value||"airZ Studio", video:$("setVideo").value||"",
       abroadTitle:"YRSTYZ YURT DIŞI", exactaTitle:"SIRALI 2'Lİ",
       dial:{ progress:0, distance:race.distance, leftLabel:race.leftLabel },
@@ -470,6 +480,7 @@
     d["race/conditions"]=scene.race.conditions; d["race/distanceSurface"]=scene.race.distanceSurface;
     d["frame"]=scene.frame; d["side"]=N(scene.side); d["track"]=scene.track;
     d["runnerSlot"]=N(scene.runnerSlot); d["clockLive"]=N(scene.clockLive);
+    d["sideScrollSecs"]=N(scene.sideScrollSecs!=null?scene.sideScrollSecs:3);  // scene writes sideScrollY itself — we never send it
     d["sponsor"]=scene.sponsor; d["video"]=scene.video||"";
     d["abroadTitle"]=scene.abroadTitle; d["exactaTitle"]=scene.exactaTitle;
     d["dial/progress"]=N(scene.dial.progress); d["dial/distance"]=N(scene.dial.distance); d["dial/leftLabel"]=scene.dial.leftLabel;
@@ -529,9 +540,18 @@
   function packedEq(a,b){ return JSON.stringify(a)===JSON.stringify(b); }
   function modeNow(){ return air==="canli" ? "live" : "staged"; }
 
+  // The list a flat key belongs to (order[3]/siralama -> "order"), or null.
+  function listNameOf(key){ var m=/^([A-Za-z0-9_]+)\[\d+\]\//.exec(key); return m?m[1]:null; }
   function commit(){
-    var full=flatten(), diff={}, k;
-    for(k in full){ if(!packedEq(lastSent[k], full[k])) diff[k]=full[k]; }
+    var full=flatten(), diff={}, k, changedLists={};
+    for(k in full){ if(!packedEq(lastSent[k], full[k])){ diff[k]=full[k]; var ln=listNameOf(k); if(ln) changedLists[ln]=1; } }
+    // CONTRACT: a list is sent WHOLE whenever any of its cells change — the engine
+    // reads a list's flat keys as the entire list and TRIMS to the highest index it
+    // receives, so a partial update (e.g. one order[i]/siralama) would drop the
+    // higher rows on air. So re-include every cell of any changed list.
+    if(Object.keys(changedLists).length){
+      for(k in full){ var l=listNameOf(k); if(l && changedLists[l]) diff[k]=full[k]; }
+    }
     lastSent=full;
     var n=0; for(k in diff){ n++; }
     if(!n) return;
@@ -796,25 +816,34 @@
      ====================================================================== */
   var raceTimer=null, raceRunning=false, raceStart=0, raceDurMs=70000, finalOrder=null;
   var POLES=["1200M","1000M","800M","600M","400M","200M","SON 100","FİNİŞ"];
-  function startRace(){
-    if(raceRunning) return;
-    scene.frame="race"; syncRaceFrameLayers();
-    // The dial/track only shows once the graphic is on in the race frame, so
-    // bring it in if nothing is on air yet (otherwise frame=race plays the
-    // on-air race-start transition). This makes the track dot move on BAŞLAT.
-    if(layerState.ekran!=="in"){ commit(); fire("animateIn",{live:air==="canli"}); layerState.ekran="in"; onAir=true; setOnAir(true); renderLayers(); log("Ekran yarış çerçevesinde yayına alındı"); }
-    else commit();
-    // seed a current order (by AGF) and a predetermined final order
-    var lr=liveRunners();
-    var seq=lr.slice().sort(function(a,b){return b.agf-a.agf;});
-    scene.order = scene.runners.slice(); // keep saddle order in the list
+  // Seed the running order from the current field (fastest by AGF leads).
+  function seedRaceOrder(){
+    var seq=liveRunners().slice().sort(function(a,b){return b.agf-a.agf;});
+    scene.order = scene.runners.slice();            // the list keeps saddle order
     seq.forEach(function(r,i){ scene.siralama[r.no]=i+1; });
-    finalOrder = shuffleToward(seq);
-    scene.splits=[];
+    return seq;
+  }
+  // MANUAL start (on-air): bring the race screen on and show the running order.
+  // Operator-timed; it does NOT auto-advance. Use this on a real broadcast — set
+  // frame=race (plays the race-start transition) and animateIn if nothing is on.
+  function showRaceScreen(){
+    scene.frame="race"; syncRaceFrameLayers();
+    if(layerState.ekran!=="in"){ commit(); fire("animateIn",{live:air==="canli"}); layerState.ekran="in"; onAir=true; setOnAir(true); renderLayers(); log("🏇 Yarış ekranı yayına alındı (elle)"); }
+    else { commit(); log("🏇 Yarış çerçevesine geçildi"); }
+    if(!raceRunning){ seedRaceOrder(); scene.splits=[]; renderFoot(); commit(); }
+  }
+  // DEMO simulation (rehearsal): the clock-driven run — dial climbs, overtakes
+  // swap siralama, split rows appear. A toggle. It ensures the race screen is up.
+  function toggleSimulation(){
+    if(raceRunning){ endRaceRun(); return; }
+    showRaceScreen();
+    var seq=seedRaceOrder();
+    finalOrder=shuffleToward(seq);
+    scene.splits=[]; lastPole=-1;
     raceStart=Date.now(); raceRunning=true;
-    $("btnStart").classList.add("running"); $("btnStart").textContent="● YARIŞTA";
+    $("btnSim").classList.add("running"); $("btnSim").textContent="● SİMÜLASYON";
     $("simMode").textContent="simülasyon";
-    log("🏁 BAŞLAT — yarış simülasyonu çalışıyor");
+    log("🏁 Simülasyon çalışıyor (demo)");
     raceTimer=setInterval(raceTick, 320);  // ~3 updates/sec
     commit();
   }
@@ -852,9 +881,9 @@
     clearInterval(raceTimer); raceTimer=null; raceRunning=false; lastPole=-1;
     // snap to final order
     finalOrder.forEach(function(r,i){ scene.siralama[r.no]=i+1; });
-    $("btnStart").classList.remove("running"); $("btnStart").textContent="BAŞLAT ▶";
+    $("btnSim").classList.remove("running"); $("btnSim").textContent="SİMÜLASYON ▶";
     renderFoot(); commit();
-    log("🏆 Yarış bitti — BİTİR ile muhtemel neticeler");
+    log("🏆 Simülasyon bitti — BİTİR ile muhtemel neticeler");
   }
   function fmtClock(sec){ var m=Math.floor(sec/60), s=sec-m*60; return m+"'"+s.toFixed(2).replace(".","”").padStart(5,"0"); }
 
@@ -919,7 +948,7 @@
       [13000,function(){ setCycle(false); buildExacta(); commit(); fire("exactaIn",{live:true}); layerState.exacta="in"; renderLayers(); say("Sıralı 2'li"); }],
       [17000,function(){ fire("exactaOut",{live:true}); layerState.exacta="out"; buildPools(); commit(); fire("poolsIn",{live:true}); layerState.pools="in"; renderLayers(); say("havuzlar"); }],
       [21000,function(){ fire("poolsOut",{live:true}); layerState.pools="out"; renderLayers(); say("yarışa hazırlık"); }],
-      [23000,function(){ air="canli"; setAirUI(); startRace(); say("yarış başladı"); }],
+      [23000,function(){ air="canli"; setAirUI(); toggleSimulation(); say("yarış başladı"); }],
       [23000+raceDurMs+1500, function(){ finishResults(); say("muhtemel neticeler"); }],
       [23000+raceDurMs+6000, function(){ fire("protestBadgeIn",{live:true}); say("itiraz — protesto rozeti"); }],
       [23000+raceDurMs+11000,function(){ fire("resultsOfficial",{live:true}); layerState.results="in"; renderLayers(); say("KESİN SONUÇ"); }],
@@ -1051,13 +1080,48 @@
     $("pvCanvas").style.display = mode==="local"?"block":"none";
     $("pvNote").style.display = mode==="none"?"flex":"none";
   }
+  // The /interactive page carries X-Frame-Options: SAMEORIGIN, so a browser only
+  // frames it when the desk is served from the SAME origin as the controller
+  // (scheme+host+port). Served from another origin (e.g. :3000 vs the controller's
+  // :3467), the iframe is refused ("… refused to connect") — then open it in a new
+  // tab, which top-level navigation allows. We carry the auth token in ?t= so the
+  // preview auto-signs-in (interactive.html reads q.get("t")).
+  var previewUrl="";
+  function previewHref(){
+    var origin=baseOrigin(); if(!origin||!rid||!iid) return "";
+    var tok = client && client.getToken ? (client.getToken()||"") : "";
+    return origin+"/interactive/"+rid+"/"+iid+(tok?("?t="+encodeURIComponent(tok)):"");
+  }
+  function sameOriginAsController(){
+    try{ var a=new URL(baseOrigin()); return a.origin===location.origin; }catch(e){ return false; }
+  }
+  // Show the vendored local .riv in-window (the canvas), fed live by the same data
+  // we send. Loads it once; afterwards just reveals + re-feeds it.
+  function showLocalPreview(){
+    if(riveInst){ showPreview("local"); if(scene) feedLocalRive(flatten()); startLocalClock(); }
+    else initLocalRive();
+  }
   function openIframePreview(){
-    if(!client || !rid || !iid){ showPreview("none"); return; }
-    stopLocalClock();                 // the Controller's playout clock drives it over there
-    var origin=baseOrigin();
-    $("pvFrame").src = origin+"/interactive/"+rid+"/"+iid;
-    showPreview("iframe");
-    log("Önizleme → "+origin+"/interactive/"+rid+"/"+iid);
+    previewUrl=previewHref();
+    $("btnOpenPreview").disabled = !previewUrl;
+    // Full-fidelity in-window embed is only possible SAME-ORIGIN: the /interactive
+    // page sends X-Frame-Options: SAMEORIGIN, so a cross-origin iframe is refused.
+    if(client && rid && iid && previewUrl && sameOriginAsController()){
+      stopLocalClock();
+      $("pvFrame").src = previewUrl; showPreview("iframe");
+      $("pvHint").textContent = "";
+      log("Önizleme (gömülü, tam) → "+previewUrl.replace(/\?t=.*$/,""));
+      return;
+    }
+    // Otherwise (cross-origin, or offline): keep a working IN-WINDOW preview — the
+    // local scene on the canvas, driven by the same data we send — and offer the
+    // new tab for the full real wall.
+    showLocalPreview();
+    if(client && rid && iid){
+      $("pvHint").innerHTML = 'Pencere içi: <b>yerel sahne</b> (kısmi — tetik · çerçeve · dial; liste ve Luau betikleri çalışmaz). Tam gerçek duvar için <b>“yeni sekmede aç”</b>.';
+    } else {
+      $("pvHint").textContent = "Yerel sahne önizlemesi (Controller yok). Bağlanınca tam önizleme için yeni sekmede açın.";
+    }
   }
   async function initLocalRive(){
     try{
@@ -1204,6 +1268,7 @@
 
   function wire(){
     $("btnSettings").addEventListener("click", function(){ $("drawer").classList.add("show"); });
+    $("btnOpenPreview").addEventListener("click", function(){ var u=previewUrl||previewHref(); if(u){ window.open(u, "_blank", "noopener"); log("Önizleme yeni sekmede açıldı"); } });
     $("btnClose").addEventListener("click", function(){ $("drawer").classList.remove("show"); });
     $("drawer").addEventListener("click", function(e){ if(e.target===$("drawer")) $("drawer").classList.remove("show"); });
     $("btnConnect").addEventListener("click", connect);
@@ -1232,7 +1297,8 @@
     $("evPhoto").addEventListener("click", evPhoto);
     $("btnSenaryo").addEventListener("click", function(){ senaryoTimers.length?stopSenaryo():senaryo(); });
 
-    $("btnStart").addEventListener("click", startRace);
+    $("btnRaceScreen").addEventListener("click", showRaceScreen);
+    $("btnSim").addEventListener("click", toggleSimulation);
     $("btnFinish").addEventListener("click", finishResults);
     $("btnProtest").addEventListener("click", protest);
     $("btnOfficial").addEventListener("click", function(){ fire("resultsOfficial",{live:air==="canli"}); layerState.results="in"; renderLayers(); log("KESİN SONUÇ"); });
@@ -1241,6 +1307,7 @@
     $("setTrack").addEventListener("change", function(){ if(scene){ scene.track=$("setTrack").value; commit(); } });
     $("setSide").addEventListener("change", function(){ if(scene){ scene.side=Number($("setSide").value); commit(); log("Yan panel → "+["Sabit","İlk 2/3/4","Kapalı"][scene.side]); } });
     $("setClock").addEventListener("change", function(){ if(scene){ scene.clockLive=Number($("setClock").value); commit(); } });
+    $("setSideScroll").addEventListener("input", function(){ if(scene){ scene.sideScrollSecs=Number($("setSideScroll").value)||0; commit(); log("Yan panel kaydırma → "+scene.sideScrollSecs+" sn"+(scene.sideScrollSecs?"":" (sabit)")); } });
     $("setSponsor").addEventListener("input", function(){ if(scene){ scene.sponsor=$("setSponsor").value; commit(); } });
     $("setVideo").addEventListener("change", function(){ if(scene){ scene.video=$("setVideo").value; commit(); log("Video kaynağı → "+scene.video); } });
 
@@ -1256,7 +1323,8 @@
         case "ArrowUp": e.preventDefault(); selRunnerIdx=Math.max(0,selRunnerIdx-1); highlightRunner(); break;
         case "ArrowDown": e.preventDefault(); selRunnerIdx=Math.min(lr.length-1,selRunnerIdx+1); highlightRunner(); break;
         case "Enter": layerAction("kart","in"); break;
-        case "b": case "B": startRace(); break;
+        case "b": case "B": showRaceScreen(); break;
+        case "s": case "S": toggleSimulation(); break;
         case "n": case "N": finishResults(); break;
         case "F1": e.preventDefault(); toggleFrame(); break;
         case "F2": e.preventDefault(); layerAction("exacta","in"); break;
